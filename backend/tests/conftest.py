@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 def isolate_data_dir(tmp_path, monkeypatch):
     """Point every test at a throwaway data directory (seed templates copied in)."""
     from app.config import settings
-    from app.services import auth_store, kb_store
+    from app.services import auth_store, kb_store, profile_store, runtime_config_store, usage_store
 
     data_dir = tmp_path / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -35,6 +35,14 @@ def isolate_data_dir(tmp_path, monkeypatch):
     # 每个 test 独立数据库文件,重置 schema 初始化标志
     monkeypatch.setattr(kb_store, "_initialized", False)
     monkeypatch.setattr(auth_store, "_initialized", False)
+    monkeypatch.setattr(profile_store, "_initialized", False)
+    monkeypatch.setattr(runtime_config_store, "_initialized", False)
+    monkeypatch.setattr(usage_store, "_initialized", False)
+    # 运行时 LLM 覆盖与 env 快照回滚到用例初始状态
+    monkeypatch.setattr(runtime_config_store, "_env_defaults", None)
+    monkeypatch.setattr(settings, "llm_api_url", "")
+    monkeypatch.setattr(settings, "llm_api_key", "")
+    monkeypatch.setattr(settings, "llm_model", "")
     yield data_dir
 
 

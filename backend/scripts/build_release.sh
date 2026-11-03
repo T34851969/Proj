@@ -87,6 +87,10 @@ echo "== 拷贝依赖(可能需要 1-2 分钟)=="
 SITE_TARGET="$STAGE/runtime/lib/python$PY_MAJOR_MIN/dist-packages"
 mkdir -p "$SITE_TARGET"
 cp -r "$VENV_SITE"/* "$SITE_TARGET"/
+# 兼容两类解释器:Debian 系 site.py 找 dist-packages(上面的实体目录),
+# 上游/uv standalone CPython 的 site.py 找 site-packages —— 补一个相对软链
+# (tar 保留软链),使发行包不依赖构建所用解释器的发行版口味。
+ln -sfn "dist-packages" "$STAGE/runtime/lib/python$PY_MAJOR_MIN/site-packages"
 
 if [ "$FULL" = 0 ]; then
   echo "== lite: 剔除嵌入模型栈(torch/transformers 等 ~1.13GB)=="

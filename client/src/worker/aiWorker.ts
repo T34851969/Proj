@@ -8,6 +8,7 @@ interface WorkerIncoming {
   messages: Array<{ role: string; content: string }>;
   serverBase: string; // 服务端地址,留空 = 同源
   token: string;      // Bearer 令牌(工作线程无法读 localStorage,由主线程随任务下发)
+  userLlm?: { apiUrl: string; apiKey: string; model: string }; // 自带 Key(BYOK)
 }
 
 self.onmessage = async (event: MessageEvent<WorkerIncoming>) => {
@@ -26,7 +27,7 @@ self.onmessage = async (event: MessageEvent<WorkerIncoming>) => {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ messages, stream: true }),
+      body: JSON.stringify({ messages, stream: true, ...(event.data.userLlm ? { userLlm: event.data.userLlm } : {}) }),
       signal: controller.signal,
     });
 

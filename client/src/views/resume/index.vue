@@ -13,48 +13,51 @@
 
     <div class="left" :class="{ 'is-mobile-hidden': mobilePane !== 'edit' }">
       <div class="btn-group">
-        <a-popconfirm
-          title="填充会覆盖当前数据，确定吗？"
-          ok-text="确定"
-          cancel-text="取消"
-          @confirm="resumeStore.autoFillData"
-        >
-          <template #icon><question-circle-outlined style="color: red" /></template>
-          <a-button type="primary" ghost>
-            <eye-outlined />
-            预览填充
-          </a-button>
-        </a-popconfirm>
+        <ProfileSwitcher />
+        <div class="btn-group-actions">
+          <a-popconfirm
+            title="将载入示例数据，会覆盖当前内容，确定吗？"
+            ok-text="确定"
+            cancel-text="取消"
+            @confirm="resumeStore.autoFillData"
+          >
+            <template #icon><question-circle-outlined style="color: red" /></template>
+            <a-button type="primary" ghost>
+              <eye-outlined />
+              载入示例
+            </a-button>
+          </a-popconfirm>
 
-        <a-popconfirm
-          title="确定要清空当前简历数据吗？"
-          ok-text="清空"
-          cancel-text="取消"
-          @confirm="resumeStore.clearData"
-        >
-          <template #icon><warning-outlined style="color: red" /></template>
-          <a-button danger>
-            <delete-outlined />
-            清空数据
-          </a-button>
-        </a-popconfirm>
+          <a-popconfirm
+            title="确定要清空当前简历数据吗？"
+            ok-text="清空"
+            cancel-text="取消"
+            @confirm="resumeStore.clearData"
+          >
+            <template #icon><warning-outlined style="color: red" /></template>
+            <a-button danger>
+              <delete-outlined />
+              清空数据
+            </a-button>
+          </a-popconfirm>
 
-        <a-button type="default" @click="resumeStore.exportData">
-          <download-outlined />
-          导出JSON
-        </a-button>
-
-        <a-upload
-          v-model:fileList="fileList"
-          :beforeUpload="handleFileUpload"
-          :showUploadList="false"
-          accept="application/json"
-        >
-          <a-button type="dashed">
-            <upload-outlined />
-            导入JSON
+          <a-button type="default" @click="resumeStore.exportData">
+            <download-outlined />
+            导出数据
           </a-button>
-        </a-upload>
+
+          <a-upload
+            v-model:fileList="fileList"
+            :beforeUpload="handleFileUpload"
+            :showUploadList="false"
+            accept="application/json"
+          >
+            <a-button type="dashed">
+              <upload-outlined />
+              导入数据
+            </a-button>
+          </a-upload>
+        </div>
       </div>
 
       <resumeEdit />
@@ -72,6 +75,7 @@ import { message } from "ant-design-vue";
 import type { UploadProps } from "ant-design-vue";
 import resumeEdit from './components/resumeEdit.vue';
 import resumePreview from './components/resumePreview.vue';
+import ProfileSwitcher from './components/ProfileSwitcher.vue';
 import { useResumeStore } from "../../store/useResumeStore";
 
 const resumeStore = useResumeStore();
@@ -105,8 +109,7 @@ const handleFileUpload = (file: File) => {
 .left {
   width: 38%;
   height: 100%;
-  background:
-    linear-gradient(180deg, rgba(7, 11, 18, 0.98), rgba(10, 17, 27, 0.98));
+  background: var(--panel-gradient);
   border-right: 1px solid var(--border-color);
   transition: all 0.3s;
   min-width: 520px;
@@ -123,14 +126,26 @@ const handleFileUpload = (file: File) => {
 }
 
 .btn-group {
-  height: 50px;
+  min-height: 50px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  align-content: center;
+  row-gap: 8px;
+  gap: 12px 16px;
+  padding: 8px 12px;
+  background: var(--toolbar-bg);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+  flex-shrink: 0;
+}
+
+.btn-group-actions {
   display: flex;
   justify-content: center;
   gap: 20px;
   align-items: center;
-  background: rgba(7, 11, 18, 0.86);
-  border-bottom: 1px solid var(--border-color);
-  backdrop-filter: blur(16px);
   flex-shrink: 0;
 }
 
@@ -151,10 +166,10 @@ const handleFileUpload = (file: File) => {
   .mobile-view-tabs {
     display: block;
     position: sticky;
-    top: 0;
+    top: env(safe-area-inset-top);
     z-index: 20;
     padding-bottom: 10px;
-    background: linear-gradient(180deg, rgba(7, 11, 18, 0.98), rgba(7, 11, 18, 0.72));
+    background: var(--toolbar-bg);
     backdrop-filter: blur(12px);
   }
 
@@ -183,18 +198,27 @@ const handleFileUpload = (file: File) => {
   }
 
   .btn-group {
-    height: auto;
-    min-height: 58px;
     justify-content: flex-start;
-    gap: 8px;
-    padding: 9px;
-    overflow-x: auto;
+    gap: 6px;
+    padding: 6px 8px;
   }
 
+  .btn-group-actions {
+    gap: 6px;
+  }
+
+  /* 移动端按钮小型化:小字号不碍事,放得下不溢出 */
   .btn-group :deep(.ant-btn) {
-    min-height: 38px;
-    padding: 0 12px;
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
     white-space: nowrap;
+  }
+
+  .btn-group .profile-switcher :deep(.profile-trigger) {
+    min-height: 30px;
+    padding: 2px 8px;
+    font-size: 12px;
   }
 
   :deep(.resume-edit) {

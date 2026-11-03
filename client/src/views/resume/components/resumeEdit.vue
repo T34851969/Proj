@@ -10,16 +10,31 @@
       @dragleave="onModuleDragLeave(module.key)"
       @drop="onModuleDrop(module.key, $event)"
     >
-      <button
-        class="module-drag-handle"
-        type="button"
-        draggable="true"
-        :aria-label="`拖拽调整${module.label}模块顺序`"
-        @dragstart="onModuleDragStart(module.key, $event)"
-        @dragend="onModuleDragEnd"
-      >
-        <MenuOutlined />
-      </button>
+      <a-dropdown :trigger="['click']">
+        <button
+          class="module-drag-handle"
+          type="button"
+          draggable="true"
+          :aria-label="`调整${module.label}模块顺序`"
+          @dragstart="onModuleDragStart(module.key, $event)"
+          @dragend="onModuleDragEnd"
+        >
+          <MenuOutlined />
+        </button>
+        <template #overlay>
+          <a-menu @click="(info: any) => onMenuClick(info, module.key)">
+            <a-menu-item key="up" :disabled="isFirstModule(module.key)">
+              <arrow-up-outlined /> 上移
+            </a-menu-item>
+            <a-menu-item key="down" :disabled="isLastModule(module.key)">
+              <arrow-down-outlined /> 下移
+            </a-menu-item>
+            <a-menu-item key="bottom" :disabled="isLastModule(module.key)">
+              <vertical-align-bottom-outlined /> 置底
+            </a-menu-item>
+          </a-menu>
+        </template>
+      </a-dropdown>
       <component :is="module.component" />
     </div>
 
@@ -39,9 +54,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import type { Component } from 'vue';
-import { MenuOutlined } from '@ant-design/icons-vue';
+import { MenuOutlined, ArrowUpOutlined, ArrowDownOutlined, VerticalAlignBottomOutlined } from '@ant-design/icons-vue';
 import { useResumeStore } from '../../../store';
 import type { SectionKey } from '../../../types/resume';
+import { sectionLabels } from '../../../constants/sectionLabels';
 import personalInfo from './personalInfo.vue';
 import education from './education.vue';
 import workExperience from './workExperience.vue';
@@ -57,13 +73,13 @@ type ModuleDefinition = {
 };
 
 const moduleDefinitions: ModuleDefinition[] = [
-  { key: 'personalInfo', label: '个人信息', component: personalInfo },
-  { key: 'education', label: '教育经历', component: education },
-  { key: 'projects', label: '项目经历', component: project },
-  { key: 'workExperience', label: '工作经历', component: workExperience },
-  { key: 'skills', label: '专业技能', component: skill },
-  { key: 'honors', label: '荣誉奖项', component: honor },
-  { key: 'summary', label: '自我评价', component: selfEvaluation }
+  { key: 'personalInfo', label: sectionLabels.personalInfo, component: personalInfo },
+  { key: 'education', label: sectionLabels.education, component: education },
+  { key: 'projects', label: sectionLabels.projects, component: project },
+  { key: 'workExperience', label: sectionLabels.workExperience, component: workExperience },
+  { key: 'skills', label: sectionLabels.skills, component: skill },
+  { key: 'honors', label: sectionLabels.honors, component: honor },
+  { key: 'summary', label: sectionLabels.summary, component: selfEvaluation }
 ];
 
 const moduleMap = new Map<SectionKey, ModuleDefinition>(
@@ -152,6 +168,31 @@ const onDropToEnd = (event: DragEvent) => {
   draggingModule.value = null;
   dragOverModule.value = null;
 };
+
+// ---- 把手菜单:触摸设备无法拖拽时的排序入口(桌面同样可用) ----
+const isFirstModule = (key: SectionKey) => resumeStore.sectionOrder[0] === key;
+const isLastModule = (key: SectionKey) =>
+  resumeStore.sectionOrder[resumeStore.sectionOrder.length - 1] === key;
+
+const onHandleMenuClick = (action: string, key: SectionKey) => {
+  const order = [...resumeStore.sectionOrder];
+  const index = order.indexOf(key);
+  if (index < 0) return;
+
+  if (action === 'bottom') {
+    order.splice(index, 1);
+    order.push(key);
+  } else {
+    const target = action === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+  }
+  resumeStore.setSectionOrder(order);
+};
+
+const onMenuClick = ({ key }: { key: string | number }, moduleKey: SectionKey) => {
+  onHandleMenuClick(String(key), moduleKey);
+};
 </script>
 
 <style scoped>
@@ -168,13 +209,13 @@ const onDropToEnd = (event: DragEvent) => {
   margin-bottom: 16px;
   border-radius: 10px;
   background: var(--panel-surface);
-  border: 1px solid rgba(80, 100, 140, 0.18);
+  border: 1px solid var(--border-color);
   box-shadow: none;
 }
 
 .module-wrapper.is-drag-over {
   outline: 2px dashed var(--primary-color);
-  border-color: rgba(59, 108, 255, 0.32);
+  border-color: rgba(111, 147, 189, 0.32);
 }
 
 .module-drag-handle {
@@ -200,7 +241,7 @@ const onDropToEnd = (event: DragEvent) => {
 .module-drop-zone {
   margin-top: 12px;
   padding: 12px;
-  border: 1px dashed rgba(80, 100, 140, 0.2);
+  border: 1px dashed var(--border-color);
   border-radius: 8px;
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
-import { hasSession, hasSkippedAuth } from "@/utils/auth";
+import { getSessionUser } from "@/utils/auth";
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -27,6 +27,18 @@ const routes: Array<RouteRecordRaw> = [
     meta: { title: "AI简历 - 网站配置" }
   },
   {
+    path: "/me",
+    name: "me",
+    component: () => import("@/views/me/index.vue"),
+    meta: { title: "AI简历 - 我的" }
+  },
+  {
+    path: "/admin",
+    name: "admin",
+    component: () => import("@/views/admin/index.vue"),
+    meta: { title: "AI简历 - 运营后台" }
+  },
+  {
     path: "/aiDeep",
     name: "aiDeep",
     component: () => import("@/views/aiDeep/index.vue"),
@@ -50,12 +62,13 @@ const router = createRouter({
   routes
 });
 
-// 路由守卫:未登录且未选择匿名模式时,引导到注册/登录页。
-// (服务端 AUTH_MODE=optional 时可"先逛逛";required 模式下接口 401 会自动回到本页)
+// 路由守卫:默认允许匿名浏览(不强制登录贴脸),登录入口在「我的」页;
+// 仅运营后台要求 admin。服务端 required 模式下接口 401 由拦截器引导。
 router.beforeEach((to) => {
-  if (to.name === "auth") return true;
-  if (hasSession() || hasSkippedAuth()) return true;
-  return { name: "auth", query: to.fullPath !== "/" ? { redirect: to.fullPath } : {} };
+  if (to.name === "admin" && getSessionUser()?.role !== "admin") {
+    return { name: "auth", query: { redirect: to.fullPath } };
+  }
+  return true;
 });
 
 router.afterEach((to) => {

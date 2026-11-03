@@ -39,3 +39,14 @@ coverage/
 .temp/
 
 .claude
+# Tauri 打包用的后端运行时暂存(由 prepare-backend.ps1 生成)
+src-tauri/resources/
+src-tauri/target/
+
+# Android 工程的构建产物(jniLibs 的 .so 为构建中转件,不跟踪)
+src-tauri/gen/android/app/build/
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/local.properties
+src-tauri/gen/android/app/src/main/jniLibs/
+# APK 自签名密钥(升级同签名必须复用,本地保管勿提交)
+src-tauri/gen/android/ai-resume.keystore

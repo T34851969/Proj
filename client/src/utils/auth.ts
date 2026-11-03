@@ -76,11 +76,42 @@ export function markAuthSkipped(): void {
   safeSet(SKIPPED_KEY, "1");
 }
 
+
 // ---------------------------------------------------------- 服务端地址
 
+export function isTauriEnv(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    Boolean(
+      (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ ||
+      (window as unknown as { __TAURI__?: unknown }).__TAURI__
+    )
+  );
+}
+
+const AUTO_SERVER_KEY = "server.auto"; // 桌面壳注入的本机后端地址(backend_info)
+let autoServerBase = safeGet(AUTO_SERVER_KEY);
+
+/** Tauri 壳启动时注入后端地址(main.ts bootstrap 调用) */
+export function setAutoServerBase(url: string): void {
+  autoServerBase = url.replace(/\/+$/, "");
+  safeSet(AUTO_SERVER_KEY, autoServerBase);
+}
+
 export function getServerBase(): string {
-  // 去除尾部斜杠,便于拼接 `${base}/api/...`
-  return safeGet(SERVER_URL_KEY).replace(/\/+$/, "");
+  // 用户手填的地址优先(连接自建服务端),其次是桌面壳注入的本机后端。
+  // 移动端壳注入为空 → 未配置时返回空串,请求将失败并由健康指示引导配置服务器地址。
+  const configured = normalizeServerUrl(safeGet(SERVER_URL_KEY));
+  if (configured) return configured;
+  return autoServerBase;
+}
+
+/** 容错:用户填地址漏了协议前缀时自动补 http:// */
+function normalizeServerUrl(url: string): string {
+  const trimmed = url.replace(/\/+$/, "");
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `http://${trimmed}`;
 }
 
 export function setServerBase(url: string): void {

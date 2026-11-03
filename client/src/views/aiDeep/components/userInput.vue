@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-import { inject, type Ref, ref } from "vue";
+import { inject, type Ref, ref, computed } from "vue";
+import { message } from "ant-design-vue";
 import { useResumeStore } from "../../../store";
 import { toRef } from "vue";
+import { useChatPresets } from "../../../composables/useChatPresets";
 const resume = toRef(useResumeStore());
 
 interface ExperienceOption {
@@ -30,10 +32,71 @@ const handleExperienceChange = (value: string) => {
     resumeProject.value = value;
   }
 };
+
+// ---- 预设档案 ----
+const { presets, save, remove } = useChatPresets();
+const activePresetId = ref<string | null>(null);
+const saveOpen = ref(false);
+const saveName = ref("");
+
+const presetOptions = computed(() =>
+  presets.value.map((p) => ({ label: p.name, value: p.id }))
+);
+
+function applyPreset(id: string) {
+  const preset = presets.value.find((p) => p.id === id);
+  if (!preset || !jd || !resumeProject) return;
+  jd.value = preset.jd;
+  resumeProject.value = preset.experience;
+  activePresetId.value = id;
+  message.success(`已应用预设「${preset.name}」`);
+}
+
+function openSave() {
+  saveName.value = "";
+  saveOpen.value = true;
+}
+
+function confirmSave() {
+  if (!jd?.value && !resumeProject?.value) {
+    message.warning("JD 与经历都为空,没有可保存的内容");
+    return;
+  }
+  const preset = save(saveName.value, jd?.value ?? "", resumeProject?.value ?? "");
+  activePresetId.value = preset.id;
+  saveOpen.value = false;
+  message.success(`已保存预设「${preset.name}」`);
+}
+
+function removeCurrent() {
+  if (!activePresetId.value) return;
+  remove(activePresetId.value);
+  activePresetId.value = null;
+  message.success("预设已删除");
+}
 </script>
 
 <template>
   <div class="data-input">
+    <!-- 预设档案管理 -->
+    <div class="preset-section">
+      <div class="input-header">
+        预设档案
+        <span style="font-size: 12px; font-weight: normal;">（像简历档案一样保存常用的岗位组合）</span>
+      </div>
+      <div class="preset-row">
+        <a-select
+          :value="undefined"
+          placeholder="加载已保存的预设…"
+          :options="presetOptions"
+          class="preset-select"
+          @change="(v: any) => applyPreset(String(v))"
+        />
+        <a-button size="small" @click="openSave">存为预设</a-button>
+        <a-button v-if="activePresetId" size="small" danger ghost @click="removeCurrent">删除当前</a-button>
+      </div>
+    </div>
+
     <div class="input-section">
       <div class="input-header">岗位 JD<span style="font-size: 12px;">（岗位要求）</span></div>
       <a-textarea v-model:value="jd" placeholder="请输入岗位 JD..." class="custom-textarea" />
@@ -48,6 +111,11 @@ const handleExperienceChange = (value: string) => {
       <div class="input-header">经历<span style="font-size: 12px;">（建议一次深挖一段经历即可）</span></div>
       <a-textarea v-model:value="resumeProject" placeholder="请输入项目/实习/工作经历..." class="custom-textarea" />
     </div>
+
+    <!-- 存为预设弹窗 -->
+    <a-modal v-model:open="saveOpen" title="存为预设档案" ok-text="保存" cancel-text="取消" @ok="confirmSave">
+      <a-input v-model:value="saveName" placeholder="预设名称，如：字节前端-秋招" :maxlength="30" />
+    </a-modal>
   </div>
 </template>
 
@@ -59,6 +127,23 @@ const handleExperienceChange = (value: string) => {
   gap: 12px;
   padding: 20px;
   background: var(--bg-card-color);
+}
+
+.preset-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.preset-select {
+  flex: 1;
+  min-width: 0;
 }
 
 .select-section {
@@ -74,82 +159,5 @@ const handleExperienceChange = (value: string) => {
   flex-direction: column;
   gap: 8px;
   min-height: 0;
-}
-
-.input-header {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-color);
-  padding: 0 4px;
-}
-
-:deep(.custom-textarea) {
-  flex: 1;
-  display: flex;
-  background: var(--chat-input-bg);
-  border-color: var(--chat-border);
-  border-radius: 8px;
-  transition: all 0.3s;
-}
-
-:deep(.custom-textarea:hover) {
-  border-color: var(--color-4);
-}
-
-:deep(.custom-textarea:focus) {
-  border-color: var(--color-4);
-  box-shadow: 0 0 0 2px rgba(var(--color-4-rgb), 0.1);
-}
-
-:deep(.ant-input) {
-  background: var(--chat-input-bg);
-  color: var(--text-color);
-  font-size: 14px;
-  line-height: 1.6;
-  resize: none;
-  overflow-y: auto;
-  height: 100% !important;
-  min-height: unset !important;
-}
-
-:deep(.ant-input::placeholder) {
-  color: var(--chat-placeholder);
-}
-
-:deep(.ant-input::-webkit-scrollbar) {
-  width: 6px;
-}
-
-:deep(.ant-input::-webkit-scrollbar-track) {
-  background: transparent;
-}
-
-:deep(.ant-input::-webkit-scrollbar-thumb) {
-  background: var(--chat-border);
-  border-radius: 3px;
-}
-
-:deep(.ant-input::-webkit-scrollbar-thumb:hover) {
-  background: var(--color-6);
-}
-
-@media (max-width: 768px) {
-  .data-input {
-    height: auto;
-    padding: 14px;
-  }
-
-  .input-section {
-    flex: none;
-  }
-
-  .input-header {
-    font-size: 14px;
-  }
-
-  :deep(.custom-textarea),
-  :deep(.ant-input) {
-    min-height: 120px !important;
-  }
 }
 </style>

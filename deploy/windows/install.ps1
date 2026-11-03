@@ -1,4 +1,4 @@
-# AI Resume Server - Windows 离线安装
+﻿# AI Resume Server - Windows 离线安装
 # 用法(管理员 PowerShell): .\install.ps1 [-InstallDir C:\ai-resume] [-Port 8000]
 param(
     [string]$InstallDir = "C:\ai-resume",
@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = "Stop"
 $src = $PSScriptRoot
 
-if (-not (Test-Path (Join-Path $src "runtime\python.exe"))) {
+if (-not (Test-Path (Join-Path $src "..\runtime\python.exe"))) {
     Write-Error "未找到 runtime\python.exe,请在解压后的发行包根目录的 deploy 目录内执行"
 }
 if (-not (Test-Path (Join-Path $src "..\app\main.py"))) {

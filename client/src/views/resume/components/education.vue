@@ -145,6 +145,6 @@ const removeEducation = (id: number) => {
 }
 
 .education-item.is-drag-over {
-  outline: 2px dashed #1677ff;
+  outline: 2px dashed #51789c;
 }
 </style>

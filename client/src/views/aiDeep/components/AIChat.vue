@@ -8,7 +8,6 @@ import { inject, type Ref } from "vue";
 
 const jd = inject<Ref<string>>("jd", ref(""));
 const resumeProject = inject<Ref<string>>("resumeProject", ref(""));
-const beginTour = inject<() => void>("beginTour");
 
 const chatHistoryRef = ref<HTMLElement>();
 const isLoading = ref(false);
@@ -147,8 +146,7 @@ const restart = () => {
 <template>
   <div class="chat-container">
     <div class="chat-history" ref="chatHistoryRef">
-      <a-alert show-icon message="AI深度交流-根据您所填的项目、工作等通过问答方式对您的经历进行扩展优化或者模拟面试问答！" type="info" />
-      <a-alert show-icon message="tips：使用前请优先填写右侧的岗位jd以及工作/项目经历！" type="warning " closable />
+      <a-alert show-icon message="填写岗位 JD 与一段经历后,选择「经历深挖」或「模拟面试」开始。" type="info" />
       <!-- 让用户选择是经历扩展还是模拟面试 -->
       <a-space wrap class="button-group" v-if="userChoose === undefined || userChoose === null" id="ai-choose-content">
         <a-button type="primary" @click="choose(true)">经历深挖</a-button>
@@ -182,9 +180,7 @@ const restart = () => {
 
     <!-- 输入区域 -->
     <div v-if="userChoose === undefined || userChoose === null" style="text-align: center;">
-      <p style="color: red;">请先在上方按钮中选择"经历深挖"或者"模拟面试"！<span @click="beginTour"
-          style="border-radius: 5px;background-color: #1677FF;font-size: 12px;color: white;padding: 3px;cursor: pointer;">使用说明</span>
-      </p>
+      <p style="color: red;">请先在上方按钮中选择"经历深挖"或者"模拟面试"！</p>
     </div>
     <div class="chat-input" id="ai-chat-content">
 

@@ -71,6 +71,13 @@ class StudentProjectInput(BaseModel):
     description: str = ""
 
 
+class UserLlmConfig(BaseModel):
+    """用户自带模型配置(BYOK):仅当次请求转发,服务端不落库不记明文。"""
+    apiUrl: str = Field(..., max_length=512)
+    apiKey: str = Field(..., min_length=1, max_length=512)
+    model: str = Field(..., min_length=1, max_length=128)
+
+
 class ResumeGenerateRequest(BaseModel):
     name: str = ""
     gender: str = ""
@@ -98,6 +105,7 @@ class ResumeGenerateRequest(BaseModel):
     educationExperiences: List[StudentEducationInput] = []
     workExperiences: List[StudentWorkInput] = []
     projectExperiences: List[StudentProjectInput] = []
+    userLlm: Optional[UserLlmConfig] = Field(default=None, description="用户自带模型配置(可选)")
 
 
 def _none_to_empty(v: Any, info: ValidationInfo) -> Any:
@@ -211,6 +219,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage] = Field(..., min_length=1, description="对话消息列表")
     stream: bool = Field(default=True, description="是否流式返回")
+    userLlm: Optional[UserLlmConfig] = Field(default=None, description="用户自带模型配置(可选)")
 
 
 class HealthResponse(BaseModel):
@@ -255,3 +264,106 @@ class AuthMeResponse(BaseModel):
     username: str
     role: Literal["user", "admin"]
     email: str = ""
+
+
+class ProfileCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50)
+    remark: str = Field(default="", max_length=200)
+    data: dict[str, Any]
+
+
+class ProfileUpdateRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=50)
+    remark: Optional[str] = Field(default=None, max_length=200)
+    data: Optional[dict[str, Any]] = None
+
+
+class ProfileMeta(BaseModel):
+    id: str
+    name: str
+    remark: str
+    createdAt: str
+    updatedAt: str
+
+
+class ProfileDetail(ProfileMeta):
+    data: dict[str, Any]
+
+
+class LlmConfigResponse(BaseModel):
+    apiUrl: str
+    model: str
+    hasKey: bool
+    keyMasked: str
+    source: Literal["env", "runtime"]
+
+
+class LlmConfigUpdate(BaseModel):
+    apiUrl: str = Field(..., max_length=512)
+    apiKey: str = Field(default="", max_length=512)
+    model: str = Field(..., max_length=128)
+
+
+class LlmTestRequest(BaseModel):
+    apiUrl: str = Field(default="", max_length=512)
+    apiKey: str = Field(default="", max_length=512)
+    model: str = Field(default="", max_length=128)
+
+
+class LlmTestResult(BaseModel):
+    ok: bool
+    message: str
+    latencyMs: int
+
+
+class ChangePasswordRequest(BaseModel):
+    oldPassword: str = Field(..., min_length=1, max_length=128)
+    newPassword: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("newPassword")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v) or not re.search(r"[0-9]", v):
+            raise ValueError("密码须同时包含字母和数字")
+        return v
+
+
+class AdminUser(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: Literal["user", "admin"]
+    disabled: bool
+    createdAt: str
+    activeTokens: int
+
+
+class UserStatusUpdate(BaseModel):
+    disabled: bool
+
+
+class ResetPasswordRequest(BaseModel):
+    newPassword: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("newPassword")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Za-z]", v) or not re.search(r"[0-9]", v):
+            raise ValueError("密码须同时包含字母和数字")
+        return v
+
+
+class AdminEvent(BaseModel):
+    id: int
+    at: str
+    userId: Optional[int]
+    username: str
+    type: str
+    detail: str
+
+
+class AdminStats(BaseModel):
+    last30Days: dict[str, int]
+    generateProviders: dict[str, int]
+    generateDaily14d: list[dict]
+    topUsers: list[dict]

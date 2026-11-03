@@ -3,6 +3,7 @@ import type { DialogueHistory } from "../types/aiDialogue";
 export interface WorkerAuthContext {
   serverBase: string;
   token: string;
+  userLlm?: { apiUrl: string; apiKey: string; model: string }; // 自带 Key(BYOK)
 }
 
 interface QueueTask {
