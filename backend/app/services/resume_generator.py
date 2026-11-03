@@ -76,6 +76,13 @@ def _safe_id(value: Any, fallback: int) -> int:
 async def _call_llm(
     input_data: ResumeGenerateRequest, template: PromptTemplate, references: List[dict]
 ) -> Tuple[Dict[str, Any] | None, str]:
+    return await _call_llm_with(input_data, template, references, None)
+
+
+async def _call_llm_with(
+    input_data: ResumeGenerateRequest, template: PromptTemplate, references: List[dict],
+    user_llm=None,
+) -> Tuple[Dict[str, Any] | None, str]:
     """Returns (result, fallback_reason); result is None when falling back."""
     system_prompt = (
         f"{template.systemPrompt}\n"
@@ -85,11 +92,17 @@ async def _call_llm(
     )
     user_prompt = json.dumps(_build_prompt_payload(input_data, template, references), ensure_ascii=False, indent=2)
 
-    if not settings.llm_api_url or not settings.llm_api_key:
+    user_llm_cfg = getattr(input_data, "userLlm", None)
+    if user_llm_cfg is None and (not settings.llm_api_url or not settings.llm_api_key):
         return None, "LLM 未配置"
 
     try:
-        result = await call_openai_compatible(system_prompt, user_prompt)
+        result = await call_openai_compatible(
+            system_prompt, user_prompt,
+            api_url=user_llm_cfg.apiUrl if user_llm_cfg else None,
+            api_key=user_llm_cfg.apiKey if user_llm_cfg else None,
+            model=user_llm_cfg.model if user_llm_cfg else None,
+        )
     except Exception as exc:
         logger.warning("LLM call failed, falling back to local generation: %s", exc)
         return None, str(exc)
@@ -286,7 +299,8 @@ async def generate_resume(
     template: PromptTemplate,
     references: List[dict],
 ) -> GeneratedResumeResponse:
-    llm_result, fallback_reason = await _call_llm(input_data, template, references)
+    llm_result, fallback_reason = await _call_llm_with(input_data, template, references,
+                                                       getattr(input_data, "userLlm", None))
 
     if llm_result:
         resume_data = _normalize_llm_result(llm_result)

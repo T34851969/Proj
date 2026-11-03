@@ -63,6 +63,7 @@ import { useRoute, useRouter } from "vue-router";
 import { message } from "ant-design-vue";
 import { loginAccount, registerAccount, type SessionPayload } from "../../api/agentAPI";
 import { getServerBase, markAuthSkipped, saveSession, setServerBase } from "../../utils/auth";
+import { useProfileStore } from "../../store/useProfileStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -80,6 +81,8 @@ const applySession = (payload: SessionPayload) => {
     setServerBase(serverUrl.value);
   }
   saveSession(payload.token, { username: payload.username, role: payload.role });
+  // 本机简历档案一次性上传合并到云端,不阻塞跳转
+  void useProfileStore().onLoginSuccess(payload.username).catch((e) => console.error(e));
   const redirect = (route.query.redirect as string) || "/";
   router.push(redirect);
 };
@@ -155,10 +158,10 @@ const skip = () => {
 .auth-card {
   width: 100%;
   max-width: 420px;
-  background: linear-gradient(180deg, rgba(16, 23, 34, 0.96), rgba(10, 17, 27, 0.98));
+  background: var(--panel-gradient);
   border-radius: 18px;
   border: 1px solid var(--border-color);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--panel-shadow);
   padding: 28px 24px;
 }
 
@@ -187,5 +190,26 @@ const skip = () => {
 
 .skip-row a {
   color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .auth-container {
+    align-items: flex-start;
+    padding: max(24px, env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+  }
+
+  .auth-card {
+    padding: 22px 16px;
+    border-radius: 14px;
+  }
+
+  .auth-card :deep(.ant-btn) {
+    min-height: 42px;
+  }
+
+  .auth-card :deep(.ant-input),
+  .auth-card :deep(.ant-input-affix-wrapper) {
+    min-height: 42px;
+  }
 }
 </style>

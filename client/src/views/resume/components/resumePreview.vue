@@ -78,6 +78,7 @@ import { createApp } from 'vue';
 import { storeToRefs } from 'pinia'
 import { message } from "ant-design-vue";
 import { exportResumeDocx } from "../../../api/agentAPI";
+import { saveBlob } from "../../../utils/download";
 import type { GeneratedResumeData } from "../../../types/agent";
 // 主题色部分功能
 const resumeStore = useResumeStore();
@@ -285,12 +286,13 @@ const exportToPDF = async () => {
   content.style.backgroundColor = "#ffffff";
   content.style.color = "#333333";
 
-  // 独立 app 实例渲染当前模板;finally 中统一清理,杜绝容器/实例泄漏
-  const mod = (await importFunc()) as { default: ComponentOptions };
-  const app = createApp(mod.default, {
-    colorShades: colorShades.value,
-  });
+  let app: ReturnType<typeof createApp> | null = null;
   try {
+    // 独立 app 实例渲染当前模板;finally 中统一清理,杜绝容器/实例泄漏
+    const mod = (await importFunc()) as { default: ComponentOptions };
+    app = createApp(mod.default, {
+      colorShades: colorShades.value,
+    });
     app.mount(content);
     tempContainer.appendChild(content);
     await nextTick();
@@ -315,13 +317,15 @@ const exportToPDF = async () => {
       },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
     };
-    await html2pdf().from(content).set(options).save();
-    message.success("PDF 导出成功");
+    // 输出 blob 统一走 saveBlob:浏览器 <a download>,桌面端原生保存对话框
+    const pdfBlob = await html2pdf().from(content).set(options).outputPdf('blob') as Blob;
+    const saved = await saveBlob(pdfBlob, "resume.pdf");
+    if (saved) message.success("PDF 导出成功");
   } catch (error) {
     console.error('PDF 导出失败:', error);
     message.error('PDF 导出失败，请重试');
   } finally {
-    app.unmount();
+    app?.unmount();
     tempContainer.remove();
     exportingPdf.value = false;
   }
@@ -340,15 +344,8 @@ const exportToWord = async () => {
       summary: resumeStore.summary,
     };
     const blob = await exportResumeDocx(payload as GeneratedResumeData);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "resume.docx";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    message.success("Word 导出成功");
+    const saved = await saveBlob(blob, "resume.docx");
+    if (saved) message.success("Word 导出成功");
   } catch (error) {
     console.error(error);
     message.error("Word 导出失败，请检查后端是否启动");
@@ -414,7 +411,9 @@ const updateBounds = async () => {
       if (!hasPreviewInteracted.value) {
         const horizontalPadding = window.innerWidth <= 768 ? 32 : 120;
         const fitScale = (state.previewWidth - horizontalPadding) / state.contentWidth;
-        state.scale = Math.min(0.72, Math.max(0.28, Number.isFinite(fitScale) ? fitScale : 0.6));
+        // 吸附到 0.05 步进,避免任意小数缩放导致的文字重采样发虚
+        const snapped = Math.round(fitScale / 0.05) * 0.05;
+        state.scale = Math.min(0.72, Math.max(0.28, Number.isFinite(snapped) ? snapped : 0.6));
         state.translateX = 0;
         state.translateY = 0;
       }

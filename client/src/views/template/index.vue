@@ -5,12 +5,24 @@ import { ShopOutlined, CheckCircleFilled } from '@ant-design/icons-vue';
 import { getTemplates } from "../../utils/getTemplates";
 import type { Template } from "../../types/template";
 import { useResumeStore } from "../../store";
+import { useIsMobile } from "../../composables/useIsMobile";
 import { storeToRefs } from 'pinia';
 
 // 模板列表
 const templates = ref<Template[]>([]);
 const resumeStore = useResumeStore();
 const { resumeSetting } = storeToRefs(resumeStore);
+const { isMobile } = useIsMobile();
+
+// 移动端大图预览
+const previewTemplate = ref<Template | null>(null);
+const previewOpen = computed({
+  get: () => previewTemplate.value !== null,
+  set: (v: boolean) => { if (!v) previewTemplate.value = null; }
+});
+const previewModalWidth = computed(() =>
+  Math.min(560, typeof window !== 'undefined' ? window.innerWidth - 24 : 560)
+);
 
 // 当前选中的模板ID
 const currentTemplate = computed({
@@ -63,7 +75,8 @@ const getTemplateImage = (template: Template): string => {
     <div class="template-grid">
       <div v-for="(template, index) in templates" :key="index" class="template-card-wrapper">
         <a-card :bordered="false" :class="{ 'selected-template': currentTemplate === template.id }"
-          class="template-card" :bodyStyle="{ padding: '12px' }">
+          class="template-card" :bodyStyle="{ padding: '12px' }"
+          @click="isMobile ? (previewTemplate = template) : undefined">
           <!-- 选中标记 -->
           <div v-if="currentTemplate === template.id" class="selected-badge">
             <check-circle-filled />
@@ -78,12 +91,12 @@ const getTemplateImage = (template: Template): string => {
               <div class="template-title">{{ template.name }}</div>
               <div class="template-author">
                 <!-- 链接 -->
-                作者：<a :href="String(template.link || '')" target="_blank">{{ template.author }}</a>
+                作者：<a :href="String(template.link || '')" target="_blank" @click.stop>{{ template.author }}</a>
               </div>
               <p class="template-description">{{ template.description }}</p>
               <a-button :type="currentTemplate === template.id ? 'text' : 'primary'"
                 :class="{ 'selected-button': currentTemplate === template.id }"
-                @click="handleTemplateChange(template.id)" size="small" block>
+                @click.stop="handleTemplateChange(template.id)" size="small" block>
                 {{ currentTemplate === template.id ? '当前使用中' : '使用此模板' }}
               </a-button>
             </div>
@@ -91,6 +104,33 @@ const getTemplateImage = (template: Template): string => {
         </a-card>
       </div>
     </div>
+
+    <!-- 移动端大图预览(点小卡打开) -->
+    <a-modal
+      v-model:open="previewOpen"
+      :title="previewTemplate?.name"
+      :footer="null"
+      :width="previewModalWidth"
+      centered
+    >
+      <template v-if="previewTemplate">
+        <div class="preview-modal-image-wrapper">
+          <img :src="getTemplateImage(previewTemplate)" :alt="previewTemplate.name" class="preview-modal-image" />
+        </div>
+        <div class="preview-modal-info">
+          <div class="template-author">
+            作者：<a :href="String(previewTemplate.link || '')" target="_blank">{{ previewTemplate.author }}</a>
+          </div>
+          <p class="template-description">{{ previewTemplate.description }}</p>
+          <a-button
+            :type="currentTemplate === previewTemplate.id ? 'text' : 'primary'"
+            :class="{ 'selected-button': currentTemplate === previewTemplate.id }"
+            block @click="handleTemplateChange(previewTemplate.id); previewOpen = false">
+            {{ currentTemplate === previewTemplate.id ? '当前使用中' : '使用此模板' }}
+          </a-button>
+        </div>
+      </template>
+    </a-modal>
   </div>
 </template>
 
@@ -132,10 +172,9 @@ const getTemplateImage = (template: Template): string => {
   border-radius: 18px;
   transition: all 0.3s ease;
   height: 100%;
-  background:
-    linear-gradient(180deg, rgba(16, 23, 34, 0.96), rgba(10, 17, 27, 0.96));
+  background: var(--panel-gradient);
   border: 1px solid var(--border-color);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--panel-shadow);
 }
 
 .template-card:hover {
@@ -144,8 +183,8 @@ const getTemplateImage = (template: Template): string => {
 }
 
 .selected-template {
-  border: 1px solid rgba(59, 108, 255, 0.7);
-  box-shadow: 0 0 0 1px rgba(59, 108, 255, 0.3), 0 24px 48px rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(111, 147, 189, 0.7);
+  box-shadow: 0 0 0 1px rgba(111, 147, 189, 0.3), 0 24px 48px rgba(0, 0, 0, 0.32);
 }
 
 .selected-badge {
@@ -218,8 +257,8 @@ const getTemplateImage = (template: Template): string => {
 }
 
 .selected-button {
-  background-color: rgba(59, 108, 255, 0.14) !important;
-  border: 1px solid rgba(59, 108, 255, 0.5) !important;
+  background-color: rgba(111, 147, 189, 0.14) !important;
+  border: 1px solid rgba(111, 147, 189, 0.5) !important;
   color: #9ab4ff !important;
 }
 
@@ -250,21 +289,64 @@ const getTemplateImage = (template: Template): string => {
     font-size: 22px;
   }
 
+  /* 移动端:三列小卡,只露缩略图与名称,点击看大图 */
   .template-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
     padding: 0;
   }
 
   .template-card {
     border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .template-card :deep(.ant-card-body) {
+    padding: 6px;
+  }
+
+  .template-image-wrapper {
+    margin-bottom: 4px;
+  }
+
+  .template-title {
+    font-size: 12px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .template-author,
+  .template-description,
+  .template-info .ant-btn {
+    display: none;
   }
 }
 
 @media (max-width: 480px) {
   .template-grid {
-    grid-template-columns: 1fr;
-    max-width: none;
+    grid-template-columns: repeat(3, 1fr);
   }
+}
+
+/* 大图预览弹层 */
+.preview-modal-image-wrapper {
+  max-height: 60vh;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.preview-modal-image {
+  width: 100%;
+  display: block;
+}
+
+.preview-modal-info {
+  margin-top: 12px;
+}
+
+.preview-modal-info .template-description {
+  margin: 8px 0 14px;
 }
 </style>

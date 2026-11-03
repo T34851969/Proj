@@ -3,38 +3,96 @@
   src: url('@/assets/fonts/zql.woff2') format('woff2');
 }
 
+/* 默认浅色主题变量 */
 :root {
-  color-scheme: dark;
-  --bg-color: #070b12;
-  --bg-card-color: #101722;
-  --bg-elevated: #161f2d;
-  --text-color: #f3f5f8;
-  --text-color2: #070b12;
-  --text-muted: #9aa7bd;
-  --primary-color: #2d5bff;
-  --primary-color-hover: #4a72ff;
-  --primary-color-active: #1d46d6;
-  --card-color: rgba(16, 23, 34, 0.92);
-  --panel-surface: rgba(11, 18, 29, 0.9);
-  --border-color: rgba(133, 152, 182, 0.15);
-  --shadow-color: rgba(0, 0, 0, 0.35);
+  color-scheme: light;
+  --bg-color: #f6f4ef;
+  --bg-card-color: #fffefb;
+  --bg-elevated: #faf9f5;
+  --text-color: #2b2a26;
+  --text-color2: #f6f4ef;
+  --text-muted: #8f8d85;
+  --primary-color: #51789c;
+  --primary-color-hover: #6489ab;
+  --primary-color-active: #3f6285;
+  --card-color: rgba(255, 254, 251, 0.95);
+  --panel-surface: rgba(250, 249, 245, 0.95);
+  --border-color: rgba(197, 192, 180, 0.55);
+  --shadow-color: rgba(88, 82, 66, 0.1);
 
-  --color-1: #05080e;
-  --color-2: #0f1724;
-  --color-3: #1a2433;
-  --color-4: #223149;
-  --color-5: #2f4468;
-  --color-6: #6d83a7;
-  --color-7: #cfd8e8;
+  --color-1: #fffefb;
+  --color-2: #f6f4ef;
+  --color-3: #efede6;
+  --color-4: #e3e0d6;
+  --color-5: #cfcabb;
+  --color-6: #a09b8d;
+  --color-7: #4a4842;
 
-  --chat-bg: #0a111b;
-  --chat-user-bubble: #183a8c;
-  --chat-ai-bubble: #101722;
-  --chat-bubble-shadow: rgba(0, 0, 0, 0.18);
-  --chat-input-bg: #0f1724;
-  --chat-border: rgba(133, 152, 182, 0.22);
+  --chat-bg: #f6f4ef;
+  --chat-user-bubble: #51789c;
+  --chat-ai-bubble: #fffefb;
+  --chat-bubble-shadow: rgba(0, 0, 0, 0.05);
+  --chat-input-bg: #fffefb;
+  --chat-border: rgba(197, 192, 180, 0.6);
   --chat-input-text: var(--text-color);
-  --chat-placeholder: #6d7c92;
+  --chat-placeholder: #a09b8d;
+
+  /* 页面舞台(预览区/智能体页)整幅背景 */
+  --stage-gradient: radial-gradient(circle at top, rgba(81, 120, 156, 0.06), transparent 24%),
+    linear-gradient(180deg, #f7f5f0 0%, #eeeadf 100%);
+  /* 玻璃质感面板(卡片/侧栏)渐变与投影 */
+  --panel-gradient: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(246, 244, 239, 0.98));
+  --panel-shadow: 0 18px 44px rgba(88, 82, 66, 0.09);
+  /* 毛玻璃工具条 */
+  --toolbar-bg: rgba(255, 254, 251, 0.88);
+  --stage-toolbar-bg: rgba(255, 254, 251, 0.78);
+  /* 面板内嵌区块 */
+  --inset-bg: rgba(239, 237, 230, 0.7);
+  --inset-bg-strong: rgba(255, 254, 251, 0.92);
+}
+
+/* 深色模式主题变量 */
+html.dark {
+  color-scheme: dark;
+  --bg-color: #131519;
+  --bg-card-color: #1b1e24;
+  --bg-elevated: #22262d;
+  --text-color: #e8e6e1;
+  --text-color2: #131519;
+  --text-muted: #8f9299;
+  --primary-color: #6f93bd;
+  --primary-color-hover: #82a5cc;
+  --primary-color-active: #5a7da8;
+  --card-color: rgba(27, 30, 36, 0.92);
+  --panel-surface: rgba(24, 27, 32, 0.9);
+  --border-color: rgba(150, 155, 165, 0.16);
+  --shadow-color: rgba(0, 0, 0, 0.32);
+
+  --color-1: #101216;
+  --color-2: #191c21;
+  --color-3: #23272e;
+  --color-4: #2c313a;
+  --color-5: #3a414b;
+  --color-6: #7d838d;
+  --color-7: #cfcdc7;
+
+  --chat-bg: #17191d;
+  --chat-user-bubble: #2c4a68;
+  --chat-ai-bubble: #1b1e24;
+  --chat-bubble-shadow: rgba(0, 0, 0, 0.2);
+  --chat-input-bg: #191c21;
+  --chat-border: rgba(150, 155, 165, 0.2);
+  --chat-input-text: var(--text-color);
+  --chat-placeholder: #6f747d;
+
+  --stage-gradient: radial-gradient(circle at top, rgba(111, 147, 189, 0.08), transparent 24%),
+    linear-gradient(180deg, #17191d 0%, #101216 100%);
+  --panel-gradient: linear-gradient(180deg, rgba(27, 30, 36, 0.96), rgba(20, 22, 27, 0.98));
+  --panel-shadow: 0 18px 44px rgba(0, 0, 0, 0.26);
+  --toolbar-bg: rgba(19, 21, 25, 0.86);
+  --stage-toolbar-bg: rgba(19, 21, 25, 0.72);
+  --inset-bg: rgba(25, 28, 33, 0.82);
+  --inset-bg-strong: rgba(30, 34, 40, 0.9);
 }
 
 *,
@@ -54,16 +112,23 @@ body {
   margin: 0;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top, rgba(45, 91, 255, 0.16), transparent 30%),
-    linear-gradient(180deg, #0b1220 0%, #070b12 58%, #05080e 100%);
+    radial-gradient(circle at top, rgba(81, 120, 156, 0.06), transparent 30%),
+    linear-gradient(180deg, #f7f5f0 0%, #f1eee6 60%, #e9e5d9 100%);
   color: var(--text-color);
-  font-family: 'zql';
-  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+  font-family: 'zql', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  transition: background 0.3s ease, color 0.3s ease;
   text-wrap: pretty;
 }
 
+html.dark body {
+  background:
+    radial-gradient(circle at top, rgba(111, 147, 189, 0.1), transparent 30%),
+    linear-gradient(180deg, #191c21 0%, #131519 58%, #101216 100%);
+}
+
 a {
-  color: #86a7ff;
+  color: var(--primary-color);
+  transition: color 0.2s ease;
 }
 
 ::selection {
@@ -93,6 +158,7 @@ a {
 .ant-dropdown-menu {
   background: var(--bg-card-color) !important;
   border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
 }
 
 .ant-input,
@@ -136,12 +202,12 @@ a {
 }
 
 .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
-  background: rgba(60, 80, 120, 0.1) !important;
+  background: rgba(81, 120, 156, 0.08) !important;
 }
 
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: rgba(60, 80, 120, 0.18) !important;
-  color: var(--text-color) !important;
+  background: rgba(81, 120, 156, 0.15) !important;
+  color: var(--primary-color) !important;
 }
 
 .ant-select-item-empty,
@@ -150,7 +216,7 @@ a {
 }
 
 .ant-modal-content {
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 20px 48px var(--shadow-color) !important;
 }
 
 .ant-modal-close {
@@ -159,11 +225,11 @@ a {
 
 .ant-modal-close:hover {
   color: var(--text-color) !important;
-  background: rgba(60, 80, 120, 0.12) !important;
+  background: rgba(81, 120, 156, 0.08) !important;
 }
 
 .ant-slider-rail {
-  background: rgba(80, 100, 140, 0.2) !important;
+  background: rgba(120, 140, 180, 0.2) !important;
 }
 
 .ant-slider-track {
@@ -191,13 +257,13 @@ a {
 .ant-btn-default:hover,
 .ant-btn-dashed:hover,
 .ant-btn-text:hover {
-  color: var(--text-color);
-  border-color: rgba(74, 114, 255, 0.5);
-  background: #172235;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  background: rgba(81, 120, 156, 0.08);
 }
 
 .ant-alert {
-  background: rgba(24, 35, 54, 0.92);
+  background: var(--bg-card-color);
   border: 1px solid var(--border-color);
 }
 
@@ -225,5 +291,22 @@ a {
   .ant-picker-dropdown,
   .ant-select-dropdown {
     max-width: calc(100vw - 24px);
+  }
+
+  .ant-dropdown-menu {
+    max-width: calc(100vw - 24px);
+  }
+
+  .ant-dropdown-menu-item {
+    min-height: 44px;
+  }
+
+  .ant-modal {
+    top: 24px;
+  }
+
+  .ant-modal-body {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
   }
 }

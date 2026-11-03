@@ -19,7 +19,7 @@ import logging
 from typing import AsyncIterator, List
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from starlette.status import (
     HTTP_400_BAD_REQUEST,
@@ -70,23 +70,27 @@ async def parse_upstream_sse(raw_stream: AsyncIterator[str]) -> AsyncIterator[st
 class _UpstreamChat:
     """Opens and validates the upstream LLM connection, then yields SSE events."""
 
-    def __init__(self, messages: List[dict], stream: bool):
+    def __init__(self, messages: List[dict], stream: bool, user_llm=None):
         self._messages = messages
         self._stream = stream
+        # BYOK:用户自带配置仅本次连接生效(不落库);缺省回落服务端配置
+        self._api_url = (user_llm.apiUrl if user_llm else None) or settings.llm_api_url
+        self._api_key = (user_llm.apiKey if user_llm else None) or settings.llm_api_key
+        self._model = (user_llm.model if user_llm else None) or settings.llm_model
         self._client: httpx.AsyncClient | None = None
         self._response: httpx.Response | None = None
 
     async def open(self) -> None:
         """Connect to upstream and validate the status code."""
         payload = {
-            "model": settings.llm_model,
+            "model": self._model,
             "messages": self._messages,
             "stream": self._stream,
             "temperature": settings.chat_temperature,
         }
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {settings.llm_api_key}",
+            "Authorization": f"Bearer {self._api_key}",
             "Accept": "text/event-stream" if self._stream else "application/json",
         }
         timeout = httpx.Timeout(settings.chat_timeout, connect=10.0)
@@ -94,7 +98,7 @@ class _UpstreamChat:
         try:
             self._response = await self._client.send(
                 self._client.build_request(
-                    "POST", settings.llm_api_url, headers=headers, json=payload
+                    "POST", self._api_url, headers=headers, json=payload
                 ),
                 stream=True,
             )
@@ -177,16 +181,18 @@ class _UpstreamChat:
 
 
 @router.post("/chat")
-async def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest, raw: Request):
     """Chat with the backend-managed LLM and receive a simplified SSE stream."""
-    if not settings.llm_api_url or not settings.llm_api_key:
+    if request.userLlm is None and (not settings.llm_api_url or not settings.llm_api_key):
         raise HTTPException(
             status_code=HTTP_502_BAD_GATEWAY,
-            detail="后端未配置 LLM_API_URL / LLM_API_KEY，无法调用大模型",
+            detail="服务端未配置模型接口,可在「我的」中改用自带 Key 模式",
         )
 
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
-    upstream = _UpstreamChat(messages, request.stream)
+    from app.services import usage_store
+    usage_store.record_event(getattr(raw.state, "user", None), "chat")
+    upstream = _UpstreamChat(messages, request.stream, request.userLlm)
     # Validate the upstream connection first: failures surface as real HTTP
     # errors instead of a 200 + broken stream.
     await upstream.open()

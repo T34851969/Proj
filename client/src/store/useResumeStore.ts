@@ -3,12 +3,14 @@ import { defineStore } from 'pinia';
 import { resumeTemplate } from '../data/resumeDataTemplate.ts';
 import { normalizeSectionOrder } from '../constants/sectionOrder';
 import { message } from 'ant-design-vue';
+import { saveBlob } from '../utils/download';
 // 定义类型
 import type {
   Education, Honor, PersonalInfo,
   Project, ResumeState, Skill,
   WorkExperience, ResumeSetting, SectionKey
 } from '../types/resume';
+import type { ProfileSnapshot } from '../types/profile';
 import type { GeneratedResumeData } from '../types/agent';
 
 function nextIdFromGeneratedResume(resumeData: GeneratedResumeData) {
@@ -71,17 +73,12 @@ export const useResumeStore = defineStore('resume', {
       localStorage.setItem('currentId', JSON.stringify(this.currentId));
     },
     // 导出数据
-    exportData() {
-      const dataStr = JSON.stringify(this.$state, null, 2); // 格式化 JSON 
+    async exportData() {
+      const dataStr = JSON.stringify(this.$state, null, 2); // 格式化 JSON
       const blob = new Blob([dataStr], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "resume_data.json";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // 浏览器走 <a download>;桌面端(WebView2)走原生保存对话框
+      const saved = await saveBlob(blob, "resume_data.json");
+      if (saved) message.success('数据导出成功');
     },
     // 导入数据
     importData(file: File) {
@@ -90,6 +87,7 @@ export const useResumeStore = defineStore('resume', {
         try {
           const jsonData = JSON.parse(event.target?.result as string);
           this.$state = jsonData; // 直接覆盖 Pinia 状态
+          this.ensureAgentConfig(); // 旧导出文件可能缺 agentConfig
           this.saveToLocalStorage(); // 保存到 localStorage
           message.success('数据导入成功！');
         } catch (error) {
@@ -112,11 +110,17 @@ export const useResumeStore = defineStore('resume', {
         const response = await fetch('/resumeData.json');
         const data = await response.json();
         this.$state = { ...data, isFirstVisit: false }; // 保持 isFirstVisit
+        this.ensureAgentConfig(); // 示例数据不含 agentConfig,补默认值
         this.saveToLocalStorage();
         message.success('数据已自动填充');
       } catch (error) {
         message.error('加载数据失败');
       }
+    },
+    // 整体替换 $state 后兜底:agentConfig 缺失/不完整时补默认值
+    ensureAgentConfig() {
+      const defaults = JSON.parse(JSON.stringify(resumeTemplate.agentConfig));
+      this.agentConfig = { ...defaults, ...(this.agentConfig || {}) };
     },
     // 保存到 localStorage
     saveToLocalStorage() {
@@ -204,6 +208,33 @@ export const useResumeStore = defineStore('resume', {
       this.sectionOrder = normalizeSectionOrder(this.sectionOrder);
       this.saveToLocalStorage();
       message.success('已将智能生成结果应用到当前简历');
+    },
+
+    // 载入一份简历档案快照:整档替换内容与设置,缺省字段回退模板默认值
+    applyProfile(data: Partial<ProfileSnapshot>) {
+      // 深拷贝入档,避免 store 与档案存储(如 localStorage 表)共享引用
+      const source = JSON.parse(JSON.stringify(data));
+      const defaults = JSON.parse(JSON.stringify(resumeTemplate));
+      this.personalInfo = { ...defaults.personalInfo, ...(source.personalInfo || {}) };
+      this.education = source.education ?? defaults.education;
+      this.workExperience = source.workExperience ?? defaults.workExperience;
+      this.skills = source.skills ?? defaults.skills;
+      this.projects = source.projects ?? defaults.projects;
+      this.honors = source.honors ?? defaults.honors;
+      this.summary = source.summary ?? '';
+      this.sectionOrder = normalizeSectionOrder(source.sectionOrder ?? defaults.sectionOrder);
+      this.resumeSetting = { ...defaults.resumeSetting, ...(source.resumeSetting || {}) };
+      this.agentConfig = { ...defaults.agentConfig, ...(source.agentConfig || {}) };
+      this.currentId = nextIdFromGeneratedResume({
+        personalInfo: this.personalInfo,
+        education: this.education,
+        workExperience: this.workExperience,
+        skills: this.skills,
+        projects: this.projects,
+        honors: this.honors,
+        summary: this.summary
+      });
+      this.saveToLocalStorage();
     },
 
     // 新增教育经历

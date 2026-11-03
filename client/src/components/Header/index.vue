@@ -4,39 +4,74 @@
       <ul>
         <li>
           <router-link to="/">
-            <SvgIcon iconName="resume" />
+            <file-text-outlined />
             简历制作
           </router-link>
         </li>
         <li ref="templateStore">
           <router-link to="/template">
-            <SvgIcon iconName="templateStore" />
+            <appstore-outlined />
             模板市场
           </router-link>
         </li>
         <li>
           <router-link to="/agent">
-            <SvgIcon iconName="example" />
+            <robot-outlined />
             简历智能体
           </router-link>
         </li>
         <li>
           <router-link to="/aiDeep">
-            <SvgIcon iconName="ai" />
+            <message-outlined />
             AI深度交流
           </router-link>
         </li>
-        <li ref="setting">
-          <router-link to="/setting">
-            <SvgIcon iconName="setting" />
-            网站配置
+        <!-- 移动端底栏入口:独立"我的"页面 -->
+        <li class="mobile-only">
+          <router-link to="/me">
+            <user-outlined />
+            我的
           </router-link>
         </li>
       </ul>
     </nav>
+
+    <!-- 桌面端右上角用户区 -->
+    <div class="user-area">
+      <a-dropdown :trigger="['click']" :overlay-style="{ minWidth: '160px' }">
+        <button ref="userMenuRef" class="user-chip" type="button">
+          <span class="user-avatar">
+            {{ session ? session.username.slice(0, 1).toUpperCase() : '?' }}
+            <span
+              class="status-dot"
+              :class="health.status.value"
+              :title="health.status.value === 'ok' ? '服务端已连接' : health.status.value === 'down' ? '服务端离线,AI 功能暂不可用' : '正在检测服务端'"
+            />
+          </span>
+          <span class="user-name">{{ session ? session.username : '未登录' }}</span>
+        </button>
+        <template #overlay>
+          <a-menu @click="onMenuClick">
+            <a-menu-item v-if="isAdmin" key="admin">
+              <dashboard-outlined />
+              运营后台
+            </a-menu-item>
+            <a-menu-item key="settings">
+              <setting-outlined />
+              账号与设置
+            </a-menu-item>
+            <a-menu-item v-if="session" key="logout">
+              <logout-outlined />
+              退出登录
+            </a-menu-item>
+          </a-menu>
+        </template>
+      </a-dropdown>
+    </div>
   </header>
 
   <a-tour
+    v-if="!isMobile"
     v-model:open="tourOpen"
     :steps="tourSteps"
     :mask="true"
@@ -49,21 +84,59 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import type { TourProps } from "ant-design-vue";
-import SvgIcon from "../SvgIcon.vue";
+import { SettingOutlined, LogoutOutlined, DashboardOutlined } from '@ant-design/icons-vue';
+import {
+  AppstoreOutlined, FileTextOutlined, MessageOutlined,
+  RobotOutlined, UserOutlined
+} from "@ant-design/icons-vue";
 import { useResumeStore } from "../../store/useResumeStore";
+import { useBackendHealth } from "../../composables/useBackendHealth";
+import { useIsMobile } from "../../composables/useIsMobile";
+import { logoutAccount } from "../../api/agentAPI";
+import { getSessionUser, clearSession, type SessionUser } from "../../utils/auth";
 
 const store = useResumeStore();
-const setting = ref(null);
+const route = useRoute();
+const router = useRouter();
+const health = useBackendHealth();
+// 移动端不弹首访引导(a-tour 桌面组件,小屏定位抖动)
+const { isMobile } = useIsMobile();
 const templateStore = ref(null);
+const userMenuRef = ref(null);
 const tourOpen = ref(false);
+// Header 常驻挂载,登录/退出后靠路由变化刷新显示
+const session = ref<SessionUser | null>(getSessionUser());
+const isAdmin = computed(() => session.value?.role === 'admin');
+watch(
+  () => route.fullPath,
+  () => {
+    session.value = getSessionUser();
+  }
+);
+
+const onMenuClick = async ({ key }: { key: string | number }) => {
+  if (key === 'settings') {
+    router.push({ name: 'me' });
+  } else if (key === 'admin') {
+    router.push({ name: 'admin' });
+  } else if (key === 'logout') {
+    await logoutAccount();
+    session.value = null;
+    router.push({ name: 'resume' });
+  } else if (key === 'auth') {
+    clearSession();
+    router.push({ name: 'auth' });
+  }
+};
 
 const tourSteps: TourProps["steps"] = [
   {
-    title: "网站配置",
-    description: "右上角可注册/登录账号;在网站配置中可切换服务端地址与主题。",
-    target: () => setting.value,
+    title: "账号与设置",
+    description: "右上角账号入口可注册/登录账号;在账号与设置中可切换服务端地址与主题外观(支持跟随系统)。",
+    target: () => userMenuRef.value,
   },
   {
     title: "选择模板",
@@ -77,7 +150,7 @@ const handleFinish = () => {
 };
 
 onMounted(() => {
-  if (store.isFirstVisit) {
+  if (store.isFirstVisit && !isMobile.value) {
     tourOpen.value = true;
   }
 });
@@ -85,10 +158,10 @@ onMounted(() => {
 
 <style scoped>
 .navbar {
-  background:
-    linear-gradient(90deg, rgba(4, 7, 13, 0.98), rgba(13, 20, 32, 0.96) 40%, rgba(15, 31, 61, 0.95) 100%);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 16px 40px var(--shadow-color);
+  box-shadow: 0 4px 20px var(--shadow-color);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -97,10 +170,16 @@ onMounted(() => {
   align-items: center;
   min-height: 72px;
   padding: 0 16px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+:global(html.dark .navbar) {
+  background: linear-gradient(90deg, rgba(4, 7, 13, 0.98), rgba(13, 20, 32, 0.96) 40%, rgba(15, 31, 61, 0.95) 100%);
+  box-shadow: 0 16px 40px var(--shadow-color);
 }
 
 .navbar nav {
-  width: min(100%, 980px);
+  width: min(100%, 880px);
 }
 
 .navbar nav ul {
@@ -119,27 +198,112 @@ onMounted(() => {
   gap: 7px;
   color: var(--text-color);
   text-align: center;
-  font-size: 17px;
-  min-height: 48px;
+  font-size: 16px;
+  min-height: 44px;
   padding: 0 14px;
   text-decoration: none;
   transition: all 0.22s;
-  border-radius: 14px;
+  border-radius: 12px;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .navbar nav ul li a:hover {
-  background-color: rgba(59, 108, 255, 0.14);
-  color: #ffffff;
+  background-color: rgba(81, 120, 156, 0.1);
+  color: var(--primary-color);
 }
 
 .navbar nav ul li .router-link-active {
-  background: rgba(59, 108, 255, 0.2);
+  background: rgba(81, 120, 156, 0.16);
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+:global(html.dark .navbar nav ul li a:hover) {
+  background-color: rgba(111, 147, 189, 0.18);
   color: #ffffff;
 }
 
-.navbar :deep(.svg-icon) {
-  font-size: 18px;
+:global(html.dark .navbar nav ul li .router-link-active) {
+  background: rgba(111, 147, 189, 0.24);
+  color: #ffffff;
+}
+
+.navbar :deep(.anticon) {
+  font-size: 17px;
+  color: inherit;
+}
+
+/* 桌面端用户区 */
+.user-area {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-card-color);
+  color: var(--text-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-chip:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.user-avatar {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-color);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.status-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-card-color);
+  background: var(--text-muted);
+}
+
+.status-dot.ok {
+  background: #52c41a;
+}
+
+.status-dot.down {
+  background: #ff4d4f;
+}
+
+.user-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-only {
+  display: none;
 }
 
 @media (max-width: 768px) {
@@ -182,6 +346,14 @@ onMounted(() => {
 
   .navbar :deep(.svg-icon) {
     font-size: 20px;
+  }
+
+  .user-area {
+    display: none;
+  }
+
+  .mobile-only {
+    display: list-item;
   }
 }
 </style>

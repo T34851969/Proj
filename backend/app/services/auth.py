@@ -179,13 +179,15 @@ def logout(token_hash: str) -> None:
 
 def bootstrap_admin() -> None:
     """Create the operator account from env on first boot (idempotent)."""
-    if not settings.admin_username or not settings.admin_password:
+    if not settings.admin_password:
         return
-    if auth_store.username_exists(settings.admin_username):
+    # .env 只填了密码时,用户名缺省为 admin(避免空 USERNAME 静默跳过建号)
+    admin_name = settings.admin_username or "admin"
+    if auth_store.username_exists(admin_name):
         return
-    error = validate_credentials(settings.admin_username, settings.admin_password)
+    error = validate_credentials(admin_name, settings.admin_password)
     if error:
         logger.error("ADMIN_USERNAME/ADMIN_PASSWORD 不满足要求,未创建运营者账号: %s", error)
         return
-    auth_store.create_user(settings.admin_username, hash_password(settings.admin_password), "", role="admin")
-    logger.info("已创建运营者账号: %s", settings.admin_username)
+    auth_store.create_user(admin_name, hash_password(settings.admin_password), "", role="admin")
+    logger.info("已创建运营者账号: %s", admin_name)

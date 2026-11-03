@@ -9,6 +9,7 @@ import type {
   PromptTemplate,
   ResumeGenerateRequest
 } from "../types/agent";
+import type { ProfileDetail, ProfileMeta, ProfileSnapshot } from "../types/profile";
 import { clearSession, getServerBase, getToken, getSessionUser } from "../utils/auth";
 
 /** 规范化的 API 错误:调用方只需读 code/message */
@@ -70,7 +71,7 @@ apiClient.interceptors.response.use(
       message.warning(FRIENDLY_STATUS_TEXT[401]);
       try {
         const { default: router } = await import("../router");
-        await router.push({ name: "auth" });
+        await router.push({ name: "me" });
       } finally {
         setTimeout(() => (authBounced = false), 1000);
       }
@@ -111,6 +112,143 @@ export async function fetchMe() {
   return response.data as { username: string; role: "user" | "admin"; email: string };
 }
 
+
+// ---- AI 模型双模式:自带 Key(BYOK)时随请求携带,服务端当次转发不落库 ----
+function getUserLlm(): { apiUrl: string; apiKey: string; model: string } | undefined {
+  if (localStorage.getItem("aiModelMode") !== "custom") return undefined;
+  try {
+    const cfg = JSON.parse(localStorage.getItem("aiCustomLlm") || "null");
+    if (cfg?.apiUrl && cfg?.apiKey && cfg?.model) {
+      return { apiUrl: cfg.apiUrl, apiKey: cfg.apiKey, model: cfg.model };
+    }
+  } catch { /* ignore */ }
+  return undefined;
+}
+
+// ------------------------------------------------------------------ 简历档案
+
+export async function listProfiles() {
+  const response = await apiClient.get("/profiles");
+  return response.data as ProfileMeta[];
+}
+
+export async function createProfile(payload: { name: string; remark?: string; data: ProfileSnapshot }) {
+  const response = await apiClient.post("/profiles", payload);
+  return response.data as ProfileDetail;
+}
+
+export async function fetchProfile(id: string) {
+  const response = await apiClient.get(`/profiles/${id}`);
+  return response.data as ProfileDetail;
+}
+
+export async function updateProfile(
+  id: string,
+  payload: { name?: string; remark?: string; data?: ProfileSnapshot }
+) {
+  const response = await apiClient.put(`/profiles/${id}`, payload);
+  return response.data as ProfileDetail;
+}
+
+export async function removeProfile(id: string) {
+  const response = await apiClient.delete(`/profiles/${id}`);
+  return response.data as { removed: boolean };
+}
+
+// ------------------------------------------------------------------ 模型服务配置(admin)
+
+export interface LlmConfig {
+  apiUrl: string;
+  model: string;
+  hasKey: boolean;
+  keyMasked: string;
+  source: "env" | "runtime";
+}
+
+export interface LlmTestResult {
+  ok: boolean;
+  message: string;
+  latencyMs: number;
+}
+
+export async function getLlmConfig() {
+  const response = await apiClient.get("/llm-config");
+  return response.data as LlmConfig;
+}
+
+export async function saveLlmConfig(payload: { apiUrl: string; apiKey?: string; model: string }) {
+  const response = await apiClient.put("/llm-config", payload);
+  return response.data as LlmConfig;
+}
+
+export async function clearLlmConfig() {
+  const response = await apiClient.delete("/llm-config");
+  return response.data as LlmConfig;
+}
+
+export async function testLlmConfig(payload: { apiUrl?: string; apiKey?: string; model?: string } = {}) {
+  const response = await apiClient.post("/llm-config/test", payload);
+  return response.data as LlmTestResult;
+}
+
+// ------------------------------------------------------------------ 运营后台(admin)
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  email: string;
+  role: "user" | "admin";
+  disabled: boolean;
+  createdAt: string;
+  activeTokens: number;
+}
+
+export interface AdminStats {
+  last30Days: Record<string, number>;
+  generateProviders: Record<string, number>;
+  generateDaily14d: Array<{ day: string; count: number }>;
+  topUsers: Array<{ username: string; events: number }>;
+}
+
+export interface AdminEvent {
+  id: number;
+  at: string;
+  userId: number | null;
+  username: string;
+  type: string;
+  detail: string;
+}
+
+export async function fetchAdminUsers() {
+  const response = await apiClient.get("/admin/users");
+  return response.data as AdminUser[];
+}
+
+export async function setUserDisabled(id: number, disabled: boolean) {
+  const response = await apiClient.patch(`/admin/users/${id}/status`, { disabled });
+  return response.data as AdminUser[];
+}
+
+export async function resetUserPassword(id: number, newPassword: string) {
+  const response = await apiClient.post(`/admin/users/${id}/reset-password`, { newPassword });
+  return response.data as { ok: boolean };
+}
+
+export async function fetchAdminStats() {
+  const response = await apiClient.get("/admin/stats");
+  return response.data as AdminStats;
+}
+
+export async function fetchAdminEvents(limit = 100, offset = 0) {
+  const response = await apiClient.get("/admin/events", { params: { limit, offset } });
+  return response.data as AdminEvent[];
+}
+
+export async function changeMyPassword(oldPassword: string, newPassword: string) {
+  const response = await apiClient.post("/auth/change-password", { oldPassword, newPassword });
+  return response.data as { ok: boolean };
+}
+
 // ------------------------------------------------------------------ 业务
 
 export async function getBackendHealth() {
@@ -144,7 +282,8 @@ export async function deleteKnowledgeDocument(documentId: string) {
 }
 
 export async function generateResume(payload: ResumeGenerateRequest) {
-  const response = await apiClient.post("/generate-resume", payload);
+  const userLlm = getUserLlm();
+  const response = await apiClient.post("/generate-resume", userLlm ? { ...payload, userLlm } : payload);
   return response.data as GeneratedResumeResponse;
 }
 
@@ -173,5 +312,10 @@ export async function uploadKnowledgeDocument(file: File) {
 
 // 供 Worker 组装请求使用(工作线程无法读 localStorage)
 export function getWorkerAuthContext() {
-  return { serverBase: getServerBase(), token: getToken(), user: getSessionUser() };
+  return {
+    serverBase: getServerBase(),
+    token: getToken(),
+    user: getSessionUser(),
+    userLlm: getUserLlm(),
+  };
 }

@@ -1,4 +1,4 @@
-# AI Resume Server - Windows 卸载
+﻿# AI Resume Server - Windows 卸载
 param([string]$InstallDir = "C:\ai-resume")
 $ErrorActionPreference = "Continue"
 Stop-ScheduledTask -TaskName "AIResumeServer" -ErrorAction SilentlyContinue
