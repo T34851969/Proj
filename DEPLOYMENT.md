@@ -79,7 +79,7 @@ npx tauri build
   build-tools/36.0.0/zipalign -f 4 <unsigned.apk> aligned.apk
   build-tools/36.0.0/apksigner sign --ks ai-resume.keystore --out ai-resume-v1.0.0-arm64.apk aligned.apk
   ```
-- CI：打 `v*` tag 或手动 dispatch `release-app.yml` → Actions 产物 `AI-Resume-Windows-Desktop`（Android 构建在 `release-android-draft.yml`，休眠中）。
+- CI：打 `v*` tag 或手动 dispatch `release-app.yml` → 五条并行 job 全自动：Windows NSIS / Linux 客户端三件套(deb/rpm/AppImage) / **Android APK(arm64,zipalign+apksigner 签名)** / 服务器 deb+rpm，统一命名 `ai-resume-{client|server}-x86_64…`/`arm64-v8a-android` 直接挂 Release；服务器 deb/rpm 已在 Debian 12/Fedora 44 实机验证。打包细节见 `packaging/README.md`。
 
 ## 4. 开发环境
 
