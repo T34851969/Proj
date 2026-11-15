@@ -135,13 +135,13 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Derive package version
         id: ver
         run: |
           if [[ "$GITHUB_REF_NAME" == v* ]]; then VER="${GITHUB_REF_NAME#v}"; else VER=$(grep -oP '(?<="version": ")[^"]+' client/src-tauri/tauri.conf.json); fi
           echo "VER=$VER" >> "$GITHUB_ENV"
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
