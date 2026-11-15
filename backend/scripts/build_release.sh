@@ -58,6 +58,7 @@ OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 NAME="ai-resume-server-$OS-$ARCH-$VARIANT"
 if [ -n "${STAGE_OUT:-}" ]; then
   STAGE="$STAGE_OUT/$NAME"
+  rm -rf "$STAGE"
   mkdir -p "$STAGE_OUT"
 else
   STAGE="$(mktemp -d)/$NAME"
