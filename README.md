@@ -50,6 +50,8 @@
 
 ### 4.1 生产部署：自包含发行包（推荐，目标机零安装零网络）
 
+**正式发行包可直接从 [GitHub Release](https://github.com/T34851969/Proj/releases) 下载**:每个 `v*` 版本由 CI 自动构建并附带桌面安装包(NSIS)、Windows 后端服务自包含包(lite zip)与 SHA256SUMS 校验清单,安装包经自托管 runner 真机验收后才挂出。
+
 在构建机（或本仓库所在机器）打一个包，拷到目标机解压即用：
 
 ```bash
