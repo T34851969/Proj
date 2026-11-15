@@ -1,5 +1,9 @@
 name: Build & Release Cross-Platform App (Tauri 2.0)
 
+# 架构: tests → prepare(共同产物一次) → 三条 OS 专属 job 并行(互不牵扯)
+#   prepare: 前端 dist 构建一次(共享);tag 时预创建 Release(消灭并发上传冲突)
+#   build-desktop-windows / client-linux / packaging-linux: 各自消费共享产物,互不依赖
+#   Android: 独立 draft workflow(手动触发,本项目骨架阶段),不在此架构内
 on:
   push:
     tags:
@@ -52,12 +56,59 @@ jobs:
         working-directory: client
         run: npm run build
 
-  build-desktop-windows:
+  prepare:
+    name: Shared Artifacts (frontend dist) & Pre-create Release
     needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: client
+        run: npm ci --no-audit --no-fund
+
+      - name: Build frontend (shared dist, built once)
+        working-directory: client
+        run: npm run build
+
+      - name: Upload frontend dist (shared artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist
+          retention-days: 14
+
+      - name: Pre-create Release (avoid concurrent-create races)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          echo "release ready: $GITHUB_REF_NAME"
+
+  build-desktop-windows:
+    name: Windows Desktop (NSIS)
+    needs: prepare
     runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Download shared frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -66,15 +117,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
-
-      - name: Rust Cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: client/src-tauri
+      - name: Install frontend deps (node_modules for beforeBuildCommand)
+        working-directory: client
+        run: npm ci --no-audit --no-fund
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -89,9 +134,15 @@ jobs:
           python -m venv backend/.venv
           backend/.venv/Scripts/python.exe -m pip install --disable-pip-version-check -r backend/requirements.txt
 
-      - name: Install Frontend Dependencies
-        working-directory: client
-        run: npm ci
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
 
       - name: Build Tauri Desktop (Windows)
         working-directory: client
@@ -119,7 +170,7 @@ jobs:
           } | Set-Content dist-release\SHA256SUMS.txt
           Get-Content dist-release\SHA256SUMS.txt
 
-      - name: Create GitHub Release
+      - name: Attach to Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
@@ -130,96 +181,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  packaging-linux:
-    name: Linux Server Packages (deb/rpm)
-    needs: tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Derive package version
-        id: ver
-        run: |
-          if [[ "$GITHUB_REF_NAME" == v* ]]; then VER="${GITHUB_REF_NAME#v}"; else VER=$(grep -oP '(?<="version": ")[^"]+' client/src-tauri/tauri.conf.json); fi
-          echo "VER=$VER" >> "$GITHUB_ENV"
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Build backend venv
-        working-directory: backend
-        run: |
-          python -m venv .venv
-          ./.venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: client/package-lock.json
-
-      - name: Build frontend
-        working-directory: client
-        run: |
-          npm ci --no-audit --no-fund
-          npm run build
-
-      - name: Stage layout
-        run: bash backend/scripts/build_release.sh --stage /tmp/layout
-
-      - name: Build deb
-        run: bash packaging/linux/build-deb.sh --layout /tmp/layout/ai-resume-server-linux-x86_64-lite --version "$VER" --out dist-release
-
-      - name: Build rpm
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq rpm
-          bash packaging/linux/build-rpm.sh --layout /tmp/layout/ai-resume-server-linux-x86_64-lite --version "$VER" --out dist-release
-
-      - name: Upload Linux server packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-resume-server-linux-deb-rpm
-          path: |
-            dist-release/*.deb
-            dist-release/*.rpm
-          retention-days: 14
-
-      - name: Attach to Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist-release/*.deb
-            dist-release/*.rpm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   client-linux:
     name: Linux Desktop Client (deb/rpm/AppImage)
-    needs: tests
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Build backend venv (Tauri beforeBuildCommand 需要)
-        working-directory: backend
-        run: |
-          python -m venv .venv
-          ./.venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -250,7 +218,7 @@ jobs:
       - name: Build Tauri Linux bundles (deb/rpm/AppImage)
         working-directory: client
         env:
-          PYTHONUTF8: '1'
+          TAURI_SKIP_BACKEND: '1'   # Linux 客户端为纯客户端,不嵌后端(与 Windows sidecar 架构无关)
         run: npx tauri build --bundles deb,rpm,appimage
 
       - name: Upload Linux client bundles
@@ -271,5 +239,68 @@ jobs:
             client/src-tauri/target/release/bundle/deb/*.deb
             client/src-tauri/target/release/bundle/rpm/*.rpm
             client/src-tauri/target/release/bundle/appimage/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  packaging-linux:
+    name: Linux Server Packages (deb/rpm)
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Derive package version
+        run: |
+          if [[ "$GITHUB_REF_NAME" == v* ]]; then VER="${GITHUB_REF_NAME#v}"; else VER=$(grep -oP '(?<="version": ")[^"]+' client/src-tauri/tauri.conf.json); fi
+          echo "VER=$VER" >> "$GITHUB_ENV"
+
+      - name: Download shared frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Build backend venv
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          ./.venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Stage layout
+        run: bash backend/scripts/build_release.sh --stage /tmp/layout
+
+      - name: Build deb
+        run: bash packaging/linux/build-deb.sh --layout /tmp/layout/ai-resume-server-linux-x86_64-lite --version "$VER" --out dist-release
+
+      - name: Build rpm
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rpm
+          bash packaging/linux/build-rpm.sh --layout /tmp/layout/ai-resume-server-linux-x86_64-lite --version "$VER" --out dist-release
+
+      - name: Upload Linux server packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-resume-server-linux-deb-rpm
+          path: |
+            dist-release/*.deb
+            dist-release/*.rpm
+          retention-days: 14
+
+      - name: Attach to Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist-release/*.deb
+            dist-release/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
