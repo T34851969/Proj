@@ -1,5 +1,6 @@
-﻿# AI Resume Server - Windows 离线安装
+# AI Resume Server - Windows 离线安装
 # 用法(管理员 PowerShell): .\install.ps1 [-InstallDir C:\ai-resume] [-Port 8000]
+# 布局自适应:发行包内 deploy\install.ps1 或 deploy\windows\install.ps1 两种位置均可执行
 param(
     [string]$InstallDir = "C:\ai-resume",
     [int]$Port = 8000
@@ -8,25 +9,34 @@ param(
 $ErrorActionPreference = "Stop"
 $src = $PSScriptRoot
 
-if (-not (Test-Path (Join-Path $src "..\runtime\python.exe"))) {
-    Write-Error "未找到 runtime\python.exe,请在解压后的发行包根目录的 deploy 目录内执行"
+# 包根定位:install.ps1 在 deploy\ 或 deploy\windows\ 下均可
+if (Test-Path (Join-Path $src "..\runtime\python.exe")) {
+    $pkgRoot = (Resolve-Path (Join-Path $src "..")).Path
+} elseif (Test-Path (Join-Path $src "..\..\runtime\python.exe")) {
+    $pkgRoot = (Resolve-Path (Join-Path $src "..\..")).Path
+} else {
+    Write-Error "未找到 runtime\python.exe,请在解压后的发行包 deploy(或 deploy\windows)目录内执行"
 }
-if (-not (Test-Path (Join-Path $src "..\app\main.py"))) {
+if (-not (Test-Path (Join-Path $pkgRoot "app\main.py"))) {
     Write-Error "发行包不完整(缺少 app\ 或 static\)"
 }
 
 Write-Host "== 安装到 $InstallDir =="
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-Copy-Item -Recurse -Force (Join-Path $src "..\app")     (Join-Path $InstallDir "app")
-Copy-Item -Recurse -Force (Join-Path $src "..\static")  (Join-Path $InstallDir "static")
-Copy-Item -Recurse -Force (Join-Path $src "..\runtime") (Join-Path $InstallDir "runtime")
-Copy-Item -Recurse -Force (Join-Path $src "..\data")    (Join-Path $InstallDir "data")
-if (Test-Path (Join-Path $src "..\.env")) {
-    Copy-Item -Force (Join-Path $src "..\.env") (Join-Path $InstallDir ".env")
+Copy-Item -Recurse -Force (Join-Path $pkgRoot "app")     (Join-Path $InstallDir "app")
+Copy-Item -Recurse -Force (Join-Path $pkgRoot "static")  (Join-Path $InstallDir "static")
+Copy-Item -Recurse -Force (Join-Path $pkgRoot "runtime") (Join-Path $InstallDir "runtime")
+Copy-Item -Recurse -Force (Join-Path $pkgRoot "data")    (Join-Path $InstallDir "data")
+if (Test-Path (Join-Path $pkgRoot ".env")) {
+    Copy-Item -Force (Join-Path $pkgRoot ".env") (Join-Path $InstallDir ".env")
 } else {
-    Copy-Item -Force (Join-Path $src "..\.env.example") (Join-Path $InstallDir ".env")
+    Copy-Item -Force (Join-Path $pkgRoot ".env.example") (Join-Path $InstallDir ".env")
     Write-Host ">> 已生成 $InstallDir\.env,请编辑填入 LLM_API_URL / LLM_API_KEY(可选 ACCESS_CODE)"
 }
+
+# start.bat 与本脚本同目录;拷到 InstallDir\deploy,使其中 %~dp0.. == $InstallDir
+New-Item -ItemType Directory -Force -Path (Join-Path $InstallDir "deploy") | Out-Null
+Copy-Item -Force (Join-Path $src "start.bat") (Join-Path $InstallDir "deploy\start.bat")
 
 # 注册为 Windows 计划任务(开机自启 + 崩溃重启)
 $taskName = "AIResumeServer"
