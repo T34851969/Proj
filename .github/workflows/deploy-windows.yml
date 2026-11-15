@@ -1,0 +1,135 @@
+name: Deploy Windows Staging & Machine Acceptance
+
+# 自托管 runner（ws2025 VM）专用部署流水线。
+# 铁闸：fork PR 的代码永远到不了 runner——本 workflow 只监听 release 发布与手动触发，
+# 且 job 级再挡一层 github.event_name != 'pull_request'。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-windows:
+    runs-on: [self-hosted, ws2025]
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: '1'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Build backend venv
+        working-directory: backend
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
+
+      - name: Build frontend
+        working-directory: client
+        env:
+          npm_config_registry: https://registry.npmmirror.com
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Build self-contained release package (lite)
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File backend\scripts\build_release.ps1
+
+      - name: Upload staging package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-resume-server-windows-lite
+          path: dist-release/ai-resume-server-windows-x86_64-lite.zip
+          retention-days: 14
+
+      - name: Stop existing staging service
+        shell: pwsh
+        run: |
+          Stop-ScheduledTask -TaskName AIResumeServer -ErrorAction SilentlyContinue
+          Get-Process python -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -like 'C:\ai-resume\*' } |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+
+      - name: Deploy staging + health check
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path (Get-Location) 'dist-release\ai-resume-server-windows-x86_64-lite.zip'
+          if (-not (Test-Path $zip)) { throw "package missing: $zip" }
+          $stage = Join-Path $env:RUNNER_TEMP 'ai-resume-stage'
+          if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
+          Expand-Archive -Path $zip -DestinationPath $stage
+          $layout = (Get-ChildItem $stage | Select-Object -First 1).FullName
+          Write-Host "layout: $layout"
+          & (Join-Path $layout 'deploy\windows\install.ps1') -InstallDir 'C:\ai-resume' -Port 8000
+          Start-Sleep -Seconds 2
+          $h = Invoke-RestMethod -Uri 'http://127.0.0.1:8000/api/health' -TimeoutSec 10
+          $json = $h | ConvertTo-Json -Compress
+          Write-Output "HEALTH: $json"
+          if (-not $json) { throw 'empty health response' }
+
+      - name: NSIS installer machine acceptance (release only)
+        if: github.event_name == 'release'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = '${{ github.event.release.tag_name }}'
+          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/T34851969/Proj/releases/tags/$tag" -TimeoutSec 30
+          $asset = $rel.assets | Where-Object { $_.name -like '*.exe' } | Select-Object -First 1
+          if (-not $asset) { throw 'no .exe asset found in release' }
+          Write-Host "installer: $($asset.name) ($([math]::Round($asset.size/1MB,1)) MB)"
+
+          $exe = Join-Path $env:RUNNER_TEMP $asset.name
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -TimeoutSec 300
+          Write-Host "downloaded: $([math]::Round((Get-Item $exe).Length/1MB,1)) MB"
+
+          # 静默安装
+          Start-Process -FilePath $exe -ArgumentList '/S' -Wait
+          $deadline = (Get-Date).AddSeconds(90)
+          $un = $null
+          $keys = @(
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+          )
+          while (-not $un -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 3
+            $un = Get-ItemProperty $keys -ErrorAction SilentlyContinue |
+              Where-Object { $_.DisplayName -like '*简历*' -or $_.DisplayName -like '*Resume*' } |
+              Select-Object -First 1
+          }
+          if (-not $un) { throw 'uninstall registry entry not found after silent install' }
+          $keyName = $un.PSChildName
+          Write-Host "installed: [$($un.DisplayName)] v$($un.DisplayVersion) @ $($un.InstallLocation)"
+
+          # 静默卸载
+          $us = $un.UninstallString
+          if ($us -match '^"([^"]+)"') { $unPath = $Matches[1] } else { $unPath = ($us -split ' ')[0] }
+          Write-Host "uninstaller: $unPath"
+          Start-Process -FilePath $unPath -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 5
+
+          # 验证卸载干净
+          $still = Get-ItemProperty $keys -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -eq $keyName }
+          if ($still) { throw "registry entry still present after uninstall: $keyName" }
+          Write-Output 'NSIS ACCEPTANCE OK: silent install -> registry verify -> silent uninstall -> clean'
