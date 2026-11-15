@@ -102,6 +102,13 @@ cp -r "$VENV_SITE"/* "$SITE_TARGET"/
 # 兼容两类解释器:Debian 系 site.py 找 dist-packages(上面的实体目录),
 # 上游/uv standalone CPython 的 site.py 找 site-packages —— 补一个相对软链
 # (tar 保留软链),使发行包不依赖构建所用解释器的发行版口味。
+# 源标准库可能自带实体 site-packages 目录(如 nix 构建的 CPython):
+# 此时 ln -sfn 会把软链建到目录内部(经典陷阱),先清掉再链
+if [ -d "$STAGE/runtime/lib/python$PY_MAJOR_MIN/site-packages" ] && \
+   [ ! -L "$STAGE/runtime/lib/python$PY_MAJOR_MIN/site-packages" ]; then
+  chmod -R u+w "$STAGE/runtime/lib/python$PY_MAJOR_MIN/site-packages"
+  rm -rf "$STAGE/runtime/lib/python$PY_MAJOR_MIN/site-packages"
+fi
 ln -sfn "dist-packages" "$STAGE/runtime/lib/python$PY_MAJOR_MIN/site-packages"
 
 if [ "$FULL" = 0 ]; then
