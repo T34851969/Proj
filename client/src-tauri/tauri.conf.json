@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AI 简历生成器",
+  "productName": "AI-Resume-Generator",
   "version": "1.0.0",
   "identifier": "com.airesume.app",
   "build": {
