@@ -10,7 +10,50 @@ permissions:
   contents: write
 
 jobs:
+  tests:
+    name: Backend & Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run backend tests (pytest)
+        working-directory: backend
+        run: python -m pytest -q
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: client
+        run: npm ci --no-audit --no-fund
+
+      - name: Run frontend tests (vitest)
+        working-directory: client
+        run: npm run test
+
+      - name: Type check + build (vue-tsc)
+        working-directory: client
+        run: npm run build
+
   build-desktop-windows:
+    needs: tests
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -21,7 +64,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: 'client/package-lock.json'
+          cache-dependency-path: client/package-lock.json
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
