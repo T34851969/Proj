@@ -92,12 +92,23 @@ jobs:
       - name: NSIS installer machine acceptance (release only)
         if: github.event_name == 'release'
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
           $tag = '${{ github.event.release.tag_name }}'
-          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/T34851969/Proj/releases/tags/$tag" -TimeoutSec 30
-          $asset = $rel.assets | Where-Object { $_.name -like '*.exe' } | Select-Object -First 1
-          if (-not $asset) { throw 'no .exe asset found in release' }
+          # 等待 release-app.yml 云构建上传安装包(最长 45 分钟),再开始真机验收
+          $deadline = (Get-Date).AddMinutes(45)
+          $asset = $null
+          while (-not $asset -and (Get-Date) -lt $deadline) {
+            try {
+              $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/T34851969/Proj/releases/tags/$tag" `
+                -Headers @{ Authorization = "Bearer $env:GITHUB_TOKEN" } -TimeoutSec 30
+              $asset = $rel.assets | Where-Object { $_.name -like '*.exe' } | Select-Object -First 1
+            } catch { }
+            if (-not $asset) { Write-Host "waiting for installer asset from release-app build..."; Start-Sleep -Seconds 30 }
+          }
+          if (-not $asset) { throw 'no .exe asset found within 45min (release-app build failed?)' }
           Write-Host "installer: $($asset.name) ($([math]::Round($asset.size/1MB,1)) MB)"
 
           $exe = Join-Path $env:RUNNER_TEMP $asset.name
