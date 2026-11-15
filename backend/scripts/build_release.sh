@@ -58,6 +58,8 @@ OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 NAME="ai-resume-server-$OS-$ARCH-$VARIANT"
 if [ -n "${STAGE_OUT:-}" ]; then
   STAGE="$STAGE_OUT/$NAME"
+  # 残留可能含只读拷贝(只读源树),先放开权限再清,否则 rm -rf 无法卸出条目
+  chmod -R u+w "$STAGE" 2>/dev/null || true
   rm -rf "$STAGE"
   mkdir -p "$STAGE_OUT"
 else
