@@ -27,11 +27,13 @@ libwebkit2gtk-4.1-dev 等,见 workflow)。与 Windows 桌面端同一份产品�
 
 ## 构建与验证矩阵
 
-| 包 | 构建地 | 真机验证 |
+| 包 | 构建地 | 真机验证(2026-11-15 完成) |
 | --- | --- | --- |
-| 服务器 deb | x99(nix-shell 取 dpkg)/ CI ubuntu | Debian 12 验证机(x99 KVM,常驻) |
-| 服务器 rpm | x99(nix-shell 取 rpm)/ CI ubuntu | Fedora 44 验证机(x99 KVM,常驻) |
+| 服务器 deb | x99(nix-shell 取 dpkg)/ CI ubuntu | ✅ Debian 12 实机:安装/enabled/启动/health 全过 |
+| 服务器 rpm | x99(nix-shell 取 rpm)/ CI ubuntu | ✅ Fedora 44 实机:安装/enabled/启动/health 全过 |
 | 客户端 deb/rpm/AppImage | CI ubuntu(Tauri) | 发版后人工验收 |
+
+验证机静态 IP 约定: Debian 12 = 192.168.122.60, Fedora 44 = 192.168.122.61(禁用 DHCP,团队规则)。
 
 ## 运行时选型红线
 
