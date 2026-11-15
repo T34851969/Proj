@@ -38,7 +38,9 @@ def test_basic_stream():
 
 
 def test_multiline_delta_escaped():
-    raw = [f"data: {_chunk('第一行\n第二行')}", "data: [DONE]"]
+    # 反斜杠移出 f-string 表达式:Python 3.11 不允许表达式内含转义(3.12 才放开)
+    payload = '第一行\n第二行'
+    raw = [f"data: {_chunk(payload)}", "data: [DONE]"]
     events = _collect(parse_upstream_sse(_lines(raw)))
     assert events[0] == "data: 第一行\ndata: 第二行\n\n"
 
