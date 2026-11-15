@@ -3,7 +3,7 @@
 基于大模型的学生个人简历撰写智能体。用户填写个人信息、选择模板，系统通过 LLM（DeepSeek/Qwen）自动生成排版精美的简历，支持 PDF/Word 导出。
 
 > **文档导航**:交接与运维事实 → [HANDOVER.md](HANDOVER.md) · 部署/升级/排障 → [DEPLOYMENT.md](DEPLOYMENT.md) ·
-> API 契约 → [backend-api.md](backend-api.md) / [frontend-api.md](frontend-api.md) · Linux 部署细节 → [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md)
+> API 契约 → [backend-api.md](backend-api.md) / [frontend-api.md](frontend-api.md) · Linux 部署细节 → [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md) · 打包规范与构建 → [packaging/README.md](packaging/README.md)
 
 ## 1. 功能
 
@@ -16,7 +16,7 @@
 - **AI 对话**：SSE 流式传输，Web Worker 处理，实时交互
 - **账号体系**：自助注册/登录、令牌 7 天滑动过期、失败锁定；浅色/深色/跟随系统三态主题
 - **运营后台**（admin）：模型服务在线配置（热生效免重启）、用户管理（禁用/重置密码）、使用统计、审计日志
-- **多端**：浏览器（服务端托管）；Windows 桌面端（Tauri，安装包内嵌后端，双击即用）；Android 端（APK，连接远程服务器）；Linux 壳为骨架
+- **多端**：浏览器（服务端托管）；Windows 桌面端（Tauri NSIS，内嵌后端，双击即用）；Linux 桌面端（Tauri deb/rpm/AppImage）；Android 端（已签名 APK，连接远程服务器）
 - **单进程部署**：后端直接托管前端页面，一个端口、一个进程、零外部依赖
 
 ## 2. 技术栈
@@ -30,7 +30,7 @@
 | LLM      | DeepSeek / Qwen（OpenAI 兼容接口）                       |
 | 向量嵌入 | sentence-transformers（BAAI/bge-small-zh-v1.5，可选）    |
 | 文档导出 | python-docx（Word）、html2pdf.js（PDF，浏览器端渲染）    |
-| 部署     | **自包含发行包**（内嵌解释器+依赖，离线解压即用）        |
+| 部署     | **自包含发行包**（deb/rpm/NSIS/lite zip/APK，内嵌解释器+依赖，零容器形态） |
 
 ## 3. 仓库结构
 
@@ -42,7 +42,8 @@
 ├── TEAM_GUIDE.md                     # 团队协作指南
 ├── .env.example                      # 环境变量模板
 ├── backend/                          # Python 后端(app/、tests/、scripts/build_release.sh)
-├── client/                         # Vue 前端(构建产物 dist/ 由后端托管)
+├── client/                           # Vue 前端 + src-tauri(Windows/Linux/Android 壳)
+├── packaging/                        # 跨平台打包脚本与规范(见 packaging/README.md)
 └── deploy/                           # 标准部署脚本(install.sh、systemd、windows/)
 ```
 
@@ -50,27 +51,30 @@
 
 ### 4.1 生产部署：自包含发行包（推荐，目标机零安装零网络）
 
-**正式发行包可直接从 [GitHub Release](https://github.com/T34851969/Proj/releases) 下载**:每个 `v*` 版本由 CI 自动构建并附带桌面安装包(NSIS)、Windows 后端服务自包含包(lite zip)与 SHA256SUMS 校验清单,安装包经自托管 runner 真机验收后才挂出。
+**全部发行包从 [GitHub Release](https://github.com/T34851969/Proj/releases) 获取**：推送 `v*` tag 后 CI 自动构建并挂出，统一命名 `ai-resume-{client|server}-x86_64-{windows|linux}`（Android 为 `ai-resume-client-arm64-v8a-android`）：
 
-在构建机（或本仓库所在机器）打一个包，拷到目标机解压即用：
+| 资产 | 形态 | 说明 |
+| --- | --- | --- |
+| `ai-resume-client-x86_64-windows-setup.exe` | NSIS | Windows 桌面端，内嵌后端，双击即用 |
+| `ai-resume-server-x86_64-windows-lite.zip` | zip | Windows 后端服务自包含包（计划任务部署） |
+| `ai-resume-server-x86_64-linux.deb` / `.rpm` | deb/rpm | Linux 服务器自包含包，systemd 托管 |
+| `ai-resume-client-x86_64-linux.deb` / `.rpm` / `.AppImage` | deb/rpm/AppImage | Linux 桌面端三件套 |
+| `ai-resume-client-arm64-v8a-android.apk` | APK | Android 端（arm64-v8a，统一签名） |
+| `SHA256SUMS.txt` | 清单 | 全部资产校验和 |
+
+服务器包目标机行为：解包即用（内嵌 CPython 运行时+全部依赖，零外部安装、零外网访问），deb/rpm 安装后 systemd 单元 **enable 不 start**，启动执行 `systemctl enable --now ai-resume`；`.env` 为 conffile，升级不覆盖配置。实机验证矩阵：**Debian 12 / Fedora 44 通过**。
+
+不打 tag 的本地出包（构建机已具备 backend/.venv 与 client/dist 时全程离线）：
 
 ```bash
-# 构建机(已具备 backend/.venv 与 client/dist,全程离线):
-./backend/scripts/build_release.sh          # lite 包(约 120MB,默认)
-./backend/scripts/build_release.sh --full   # full 包(含向量检索,约 500MB)
-
-# 目标机(零安装、零外网访问):
-tar -xzf ai-resume-server-linux-x86_64-lite.tar.gz
-cd ai-resume-server-linux-x86_64-lite
-cp .env.example .env && vi .env             # 填 LLM 配置;建议设置 ACCESS_CODE
-sudo ./deploy/install.sh                    # systemd 安装自启;无 root 用 start.sh
-# 访问 http://<服务器IP>:8000 (后端同时托管前端页面)
+./backend/scripts/build_release.sh [--full]                      # 自包含布局/tar 流程(lite 约 120MB,full 约 500MB)
+bash packaging/linux/build-deb.sh --layout <布局目录> --version X.Y.Z --out dist-release   # 服务器 deb
+bash packaging/linux/build-rpm.sh --layout <布局目录> --version X.Y.Z --out dist-release   # 服务器 rpm
 ```
 
-Windows 包在 Windows 机器上执行 `backend\scripts\build_release.ps1` 产出,
-部署用 `deploy\windows\install.ps1`;**桌面安装包**(Tauri,内嵌后端,推荐)
-用 `cd client && npx tauri build` 产出 NSIS exe。
-详见 [DEPLOYMENT.md](DEPLOYMENT.md) 与 [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md)。
+Windows 包在 Windows 机器上执行 `backend\scripts\build_release.ps1` 产出，部署用 `deploy\windows\install.ps1`；
+**桌面安装包**（Tauri，内嵌后端）用 `cd client && npx tauri build` 产出 NSIS exe。
+细节见 [DEPLOYMENT.md](DEPLOYMENT.md)、[packaging/README.md](packaging/README.md) 与 [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md)。
 
 ### 4.2 本地开发
 
@@ -162,7 +166,9 @@ npm run build                # vue-tsc 严格类型检查 + 生产构建
 
 ```bash
 # 发行包构建(构建机)
-./backend/scripts/build_release.sh [--full]      # 打包(lite/full)
+./backend/scripts/build_release.sh [--full]      # 自包含布局/tar 流程(lite/full)
+bash packaging/linux/build-deb.sh --layout <布局> --version X.Y.Z --out dist-release   # 服务器 deb
+bash packaging/linux/build-rpm.sh --layout <布局> --version X.Y.Z --out dist-release   # 服务器 rpm
 ls dist-release/                                 # 产物 + SHA256SUMS
 
 # 服务管理(目标机)
@@ -181,21 +187,39 @@ python test_api.py                               # API 冒烟(需服务已启动
 npm run dev / build / test
 ```
 
-## 11. Windows CI/CD(自托管 runner)
+## 11. CI/CD
 
-构建与测试在 GitHub 云端,Windows 部署与真机验收在自托管 runner(Windows Server VM,label `ws2025`)上执行:
+单仓并行流水线（`.github/workflows/release-app.yml`），推送 `v*` tag 即自动发版：
 
-- **release-app.yml**(发版):tag `v*` 推送 → **测试关卡**(pytest / vitest / vue-tsc,不通过不出包)
-  → 云端构建 NSIS 安装包并挂到 Release
-- **deploy-windows.yml**(部署):Release 发布触发 → 自托管 runner 构建 lite 发行包 → 部署 staging 服务
-  (Windows 计划任务 `AIResumeServer`,默认 `C:\ai-resume`,端口 8000,覆盖升级)→ 健康检查;
-  Release 事件附加**安装包真机验收**(静默安装 → 注册表验证 → 静默卸载)
-- **安全闸**:两条流水线均含 `if: github.event_name != 'pull_request'` 铁闸——fork PR 的代码永远不会
-  到达自托管机器;仓库默认 workflow 权限已收紧为 `read`
-- 两个 workflow 均支持手动触发(workflow_dispatch);staging 手工启停:
-  `Start-ScheduledTask` / `Stop-ScheduledTask -TaskName AIResumeServer`
+- **tests**：pytest / vitest / vue-tsc 三道关卡，不通过不出包
+- **prepare**：前端 dist 构建一次全流水线共享 + 预创建 Release（消灭多 job 并发挂资产的冲突）
+- **四路并行构建**（互不牵扯，任一失败不影响其余平台的产物）：
+  - `build-desktop-windows`：NSIS 安装包 + Windows lite zip
+  - `client-linux`：Tauri deb / rpm / AppImage
+  - `client-android`：APK（arm64-v8a，zipalign + apksigner 统一签名）
+  - `packaging-linux`：服务器 deb / rpm（内含 **glibc 地板断言步**——运行时要求高于 glibc 2.17 直接判失败）
 
-分支说明:`backend-dev` / `frontend-dev` / `release/v1.0-full-deliverable` 的全部历史已并入 main,
-2026-11 已清理删除。日常开发与**破坏性重构、激进测试、staging 部署实验**一律在 `dev` 分支进行,
-main 只接收验证过的变更;`deploy-windows.yml` 支持 workflow_dispatch 指定 ref,
-可直接从 dev 手动部署 staging 验证破坏性变更,不影响 main 与发版链路。
+部署（`.github/workflows/deploy-windows.yml`）：staging 服务部署 + 健康检查，Release 事件附加 NSIS
+安装包真机验收（静默安装 → 注册表验证 → 静默卸载）。注意：**CI 构建的 release 不会自动触发部署**
+（GitHub 对 GITHUB_TOKEN 创建的 release 抑制后续 workflow），发版后手动点火部署流水线：
+`gh workflow run deploy-windows.yml --ref v<版本>`。
+
+**安全闸**：两条流水线均含 `if: github.event_name != 'pull_request'` 铁闸——fork PR 的代码永远不会
+到达自托管 runner；仓库默认 workflow 权限已收紧为 `read`。
+
+分支策略：`dev` 分支承载破坏性重构、激进测试与 staging 部署实验（deploy 支持 workflow_dispatch 指定
+ref，可直接从 dev 验证破坏性变更），main 只接收验证过的变更。
+
+## 12. 工程规范（红线）
+
+1. **运行时红线**：服务器发行包内嵌的 Python 必须是 standalone CPython（glibc 2.17 地板），禁止
+   发行版/nix 解释器进包——否则在旧 glibc 目标机直接拒载；CI 断言步强制拦截。
+2. **零容器**：本项目拒绝一切容器形态，所有产物均为原生包（deb/rpm/NSIS/zip/APK/AppImage）。
+3. **资产命名**：`ai-resume-{client|server}-{CPU架构}-{操作系统}`（如 `ai-resume-server-x86_64-linux.deb`），
+   Android 为 `ai-resume-client-arm64-v8a-android.apk`；不得引入其他命名。
+4. **Linux 打包**：systemd 单元 **enable 不 start**（安装不强制启动）；`.env` 为 conffile；安装位
+   `/opt/ai-resume`；包内零发行版依赖。
+5. **Windows 批处理**：必须 CRLF + ASCII（GBK 控制台对 LF/中文 bat 会碎裂解析），`.gitattributes` 已强制。
+6. **Tauri**：`productName` 必须 ASCII（Linux 包名派生自它，中文会被 deb/rpm 拒绝）；窗口标题可中文。
+7. **Android**：APK 统一签名（keystore 由仓库 secrets 托管），**升级必须同签名**。
+8. **版本对齐**：发版前 `client/src-tauri/tauri.conf.json` 的 `version` 必须与 tag 一致。
