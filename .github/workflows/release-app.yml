@@ -150,9 +150,7 @@ jobs:
 
       - name: Rename installer to unified release name
         shell: pwsh
-        run: |
-          Move-Item "client\src-tauri\target\release\bundle\nsis\*_x64-setup.exe" \
-                    "client\src-tauri\target\release\bundle\nsis\ai-resume-client-x86_64-windows-setup.exe" -Force
+        run: Move-Item "client\src-tauri\target\release\bundle\nsis\*_x64-setup.exe" "client\src-tauri\target\release\bundle\nsis\ai-resume-client-x86_64-windows-setup.exe" -Force
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
