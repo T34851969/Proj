@@ -10,6 +10,7 @@
 #   backend/scripts/build_release.sh            # lite(默认,剔除嵌入模型栈)
 #   backend/scripts/build_release.sh --full     # full(含向量检索,包约 500MB)
 #   backend/scripts/build_release.sh --out DIR  # 自定义输出目录
+#   backend/scripts/build_release.sh --stage DIR  # 直出目录布局(供 deb/rpm 打包,不打 tar)
 #
 # 说明:
 #   - 必须在“目标平台同架构”的机器上构建(linux-x86_64 之外用 build_release.ps1)
@@ -27,6 +28,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --full) FULL=1; shift ;;
     --out)  OUT="$2"; shift 2 ;;
+    --stage) STAGE_OUT="$2"; shift 2 ;;
     *) echo "未知参数: $1" >&2; exit 1 ;;
   esac
 done
@@ -54,7 +56,12 @@ VARIANT=$([ "$FULL" = 1 ] && echo full || echo lite)
 ARCH="$(uname -m)"
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 NAME="ai-resume-server-$OS-$ARCH-$VARIANT"
-STAGE="$(mktemp -d)/$NAME"
+if [ -n "${STAGE_OUT:-}" ]; then
+  STAGE="$STAGE_OUT/$NAME"
+  mkdir -p "$STAGE_OUT"
+else
+  STAGE="$(mktemp -d)/$NAME"
+fi
 
 echo "== 构建发行包: $NAME =="
 mkdir -p "$STAGE"/{app,static,runtime/bin,runtime/lib,data,deploy}
@@ -124,15 +131,19 @@ except ImportError:
 "
 
 # ---------- 5) 打包 ----------
-mkdir -p "$OUT"
-cd "$(dirname "$STAGE")"
-TARBALL="$OUT/$NAME.tar.gz"
-echo "== 压缩(可能需要几分钟)=="
-tar -czf "$TARBALL" "$NAME"
-cd "$OUT"
-sha256sum "$(basename "$TARBALL")" > SHA256SUMS.txt
+if [ -n "${STAGE_OUT:-}" ]; then
+  echo "== 完成(Stage 模式,未压缩): $STAGE =="
+else
+  mkdir -p "$OUT"
+  cd "$(dirname "$STAGE")"
+  TARBALL="$OUT/$NAME.tar.gz"
+  echo "== 压缩(可能需要几分钟)=="
+  tar -czf "$TARBALL" "$NAME"
+  cd "$OUT"
+  sha256sum "$(basename "$TARBALL")" > SHA256SUMS.txt
 
-echo "== 完成 =="
-ls -lh "$TARBALL" SHA256SUMS.txt
-echo "内容物:"
-tar -tzf "$TARBALL" | awk -F/ 'NF<=2' | sort -u | head -12
+  echo "== 完成 =="
+  ls -lh "$TARBALL" SHA256SUMS.txt
+  echo "内容物:"
+  tar -tzf "$TARBALL" | awk -F/ 'NF<=2' | sort -u | head -12
+fi
