@@ -82,6 +82,8 @@ echo "== 组装 Python 运行时($PY_MAJOR_MIN)=="
 cp -L "$PY_REAL" "$STAGE/runtime/bin/python"
 chmod 755 "$STAGE/runtime/bin/python"
 cp -r "$PY_LIB_DIR" "$STAGE/runtime/lib/python$PY_MAJOR_MIN"
+# 源目录可能来自只读树(如 nix store),权限原样拷贝会卡死后续写入;补回属主写权限
+chmod -R u+w "$STAGE/runtime/lib/python$PY_MAJOR_MIN"
 # 解释器动态库随包分发(start.sh/systemd 已设置 LD_LIBRARY_PATH)
 LDPY="$(ldd "$PY_REAL" 2>/dev/null | grep -oE '/[^ ]*libpython[0-9.]*\.so[^ ]*' | head -1 || true)"
 mkdir -p "$STAGE/runtime/lib"
