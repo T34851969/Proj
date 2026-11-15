@@ -122,7 +122,9 @@ if [ "$FULL" = 0 ]; then
          scipy scipy-*.dist-info scipy.libs \
          sklearn sklearn-*.dist-info scikit_learn-*.dist-info \
          sympy sympy-*.dist-info mpmath mpmath-*.dist-info \
-         networkx networkx-*.dist-info
+         networkx networkx-*.dist-info \
+         nvidia nvidia-* triton triton-*.dist-info \
+         cuda_interp cuda_interp-*
 fi
 
 # 清理无关内容(测试/演示/缓存)
