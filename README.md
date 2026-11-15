@@ -178,3 +178,20 @@ python test_api.py                               # API 冒烟(需服务已启动
 # 前端开发(client/)
 npm run dev / build / test
 ```
+
+## 11. Windows CI/CD(自托管 runner)
+
+构建与测试在 GitHub 云端,Windows 部署与真机验收在自托管 runner(Windows Server VM,label `ws2025`)上执行:
+
+- **release-app.yml**(发版):tag `v*` 推送 → **测试关卡**(pytest / vitest / vue-tsc,不通过不出包)
+  → 云端构建 NSIS 安装包并挂到 Release
+- **deploy-windows.yml**(部署):Release 发布触发 → 自托管 runner 构建 lite 发行包 → 部署 staging 服务
+  (Windows 计划任务 `AIResumeServer`,默认 `C:\ai-resume`,端口 8000,覆盖升级)→ 健康检查;
+  Release 事件附加**安装包真机验收**(静默安装 → 注册表验证 → 静默卸载)
+- **安全闸**:两条流水线均含 `if: github.event_name != 'pull_request'` 铁闸——fork PR 的代码永远不会
+  到达自托管机器;仓库默认 workflow 权限已收紧为 `read`
+- 两个 workflow 均支持手动触发(workflow_dispatch);staging 手工启停:
+  `Start-ScheduledTask` / `Stop-ScheduledTask -TaskName AIResumeServer`
+
+分支说明:`backend-dev` / `frontend-dev` 的全部历史已通过 subtree merge 并入 main,2026-11 已清理删除,
+新开发一律基于 main。
