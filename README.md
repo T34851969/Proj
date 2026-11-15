@@ -193,5 +193,7 @@ npm run dev / build / test
 - 两个 workflow 均支持手动触发(workflow_dispatch);staging 手工启停:
   `Start-ScheduledTask` / `Stop-ScheduledTask -TaskName AIResumeServer`
 
-分支说明:`backend-dev` / `frontend-dev` 的全部历史已通过 subtree merge 并入 main,2026-11 已清理删除,
-新开发一律基于 main。
+分支说明:`backend-dev` / `frontend-dev` / `release/v1.0-full-deliverable` 的全部历史已并入 main,
+2026-11 已清理删除。日常开发与**破坏性重构、激进测试、staging 部署实验**一律在 `dev` 分支进行,
+main 只接收验证过的变更;`deploy-windows.yml` 支持 workflow_dispatch 指定 ref,
+可直接从 dev 手动部署 staging 验证破坏性变更,不影响 main 与发版链路。
