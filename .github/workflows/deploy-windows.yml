@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 45
     env:
       PYTHONUTF8: '1'
+      PIP_CACHE_DIR: C:\runner-cache\pip
+      npm_config_cache: C:\runner-cache\npm
 
     steps:
       - name: Checkout
