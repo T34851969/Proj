@@ -39,12 +39,10 @@ jobs:
         working-directory: backend
         run: |
           python -m venv .venv
-          .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
+          .\.venv\Scripts\python.exe -m pip install --disable-pip-version-check -r requirements.txt
 
       - name: Build frontend
         working-directory: client
-        env:
-          npm_config_registry: https://registry.npmmirror.com
         run: |
           npm ci --no-audit --no-fund
           npm run build
