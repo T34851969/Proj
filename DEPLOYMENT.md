@@ -81,6 +81,24 @@ npx tauri build
   ```
 - CI：打 `v*` tag 或手动 dispatch `release-app.yml` → 五条并行 job 全自动：Windows NSIS / Linux 客户端三件套(deb/rpm/AppImage) / **Android APK(arm64,zipalign+apksigner 签名)** / 服务器 deb+rpm，统一命名 `ai-resume-{client|server}-x86_64…`/`arm64-v8a-android` 直接挂 Release；服务器 deb/rpm 已在 Debian 12/Fedora 44 实机验证。打包细节见 `packaging/README.md`。
 
+## 5. Windows staging 部署与验收（自托管 runner）
+
+部署目标为 Windows 自托管 runner（label `ws2025`）上的 staging 服务（计划任务 `AIResumeServer`，
+安装位 `C:\Program Files\ai-resume`，端口 8000）：
+
+```bash
+# 发版后手动点火（CI 用 GITHUB_TOKEN 建的 release 不会自动触发部署——GitHub 防递归机制）
+gh workflow run deploy-windows.yml -R T34851969/Proj --ref v<版本>
+# 破坏性实验可直接指定 dev 分支验证
+gh workflow run deploy-windows.yml -R T34851969/Proj --ref dev
+```
+
+流程：runner 构建 lite 包 → 覆盖 staging → 健康检查 →（release 事件时追加 NSIS 安装包真机验收：
+静默安装 → 注册表验证 → 静默卸载）。约 14 分钟（无验收段实测 13m33s）。
+
+手工启停 staging：`Start-ScheduledTask` / `Stop-ScheduledTask -TaskName AIResumeServer`；
+runner 排障：`C:\Program Files\actions-runner*\_diag`，先查 dev-sidecar(127.0.0.1:31181) 再查服务。
+
 ## 4. 开发环境
 
 ```bash
