@@ -148,6 +148,8 @@ npm run build                # vue-tsc 严格类型检查 + 生产构建
   - `client-android`：APK（arm64-v8a，zipalign + apksigner 统一签名）
   - `packaging-linux`：服务器 deb / rpm（内含 **glibc 地板断言步**——运行时要求高于 glibc 2.17 直接判失败）
 
+契约关卡（`.github/workflows/api-contract.yml`）：任何改动 `API.md`、`backend/app/**` 或依赖清单的 push / PR 都会触发 `backend/scripts/check_api_docs.py`，把 FastAPI 真实路由与 Pydantic 模型同 API.md 逐条对撞——接口变了文档没跟上直接判失败。本地同款自检：`backend/.venv/bin/python backend/scripts/check_api_docs.py`。
+
 部署（`.github/workflows/deploy-windows.yml`）：staging 服务部署 + 健康检查，Release 事件附加 NSIS 安装包真机验收（静默安装 → 注册表验证 → 静默卸载）。注意：**CI 构建的 release 不会自动触发部署**（GitHub 对 GITHUB_TOKEN 创建的 release 抑制后续 workflow），发版后手动点火：`gh workflow run deploy-windows.yml --ref v<版本>`。
 
 分支策略：`dev` 分支承载破坏性重构、激进测试与 staging 部署实验（deploy 支持 workflow_dispatch 指定 ref），main 只接收验证过的变更。

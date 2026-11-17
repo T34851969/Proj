@@ -1,0 +1,64 @@
+name: API Contract Check
+
+# API.md 与后端实现的一致性关卡。
+#
+# 背景：API.md 是 HTTP 契约的唯一出处，但"文档靠人自觉同步"必然腐化。
+# 本 workflow 用 backend/scripts/check_api_docs.py 把 FastAPI 应用的真实路由
+# 与 Pydantic 模型，跟 API.md 的 §1 路由表、附录 A 类型定义逐条对撞：
+#   [A] 路由集合（双向：新增未记录 / 记录已删除）
+#   [B] response_model 是否在文档中出现
+#   [C] TS interface 字段名是否与 Pydantic 模型一致
+#   [D] 是否有模型两边都没交代（强制做一次显式决定）
+#   [E] requirements-contract.txt 与 requirements.txt 的版本是否一致
+#
+# 任一不符 → 本 job 失败 → PR 不可合并 / tag 不出包。
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'API.md'
+      - 'backend/app/**'
+      - 'backend/scripts/check_api_docs.py'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/api-contract.yml'
+  pull_request:
+    paths:
+      - 'API.md'
+      - 'backend/app/**'
+      - 'backend/scripts/check_api_docs.py'
+      - 'backend/requirements*.txt'
+      - '.github/workflows/api-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: API.md 与实现一致
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements-contract.txt
+
+      # 只装契约检查需要的最小依赖（不装 sentence-transformers，避免拖入 torch）
+      - name: Install minimal deps
+        run: |
+          python -m pip install --disable-pip-version-check --upgrade pip
+          pip install -r backend/requirements-contract.txt
+
+      - name: Check API contract
+        run: python backend/scripts/check_api_docs.py

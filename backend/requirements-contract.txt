@@ -1,0 +1,17 @@
+# API 契约检查（backend/scripts/check_api_docs.py）所需的最小依赖集。
+#
+# 只是 backend/requirements.txt 的子集：不装 sentence-transformers（会拖入
+# ~2GB 的 torch）、不装 pypdf（document_parser 内部按需导入）、不装 pytest。
+# 目的是让契约检查在 CI 里 1 分钟内跑完。
+#
+# 版本号必须与 backend/requirements.txt 完全一致——check_api_docs.py 的检查 E
+# 会在 CI 中强制这一点，改一处忘另一处会直接失败。
+
+fastapi==0.115.6
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-multipart==0.0.20
+httpx==0.28.1
+python-dotenv==1.0.1
+python-docx==1.1.2
+numpy==2.2.1
