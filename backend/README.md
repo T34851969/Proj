@@ -1,6 +1,6 @@
 # backend — FastAPI 服务端
 
-> 本文只给三条命令。部署/数据/配置/排障见 [../OPS.md](../OPS.md)；接口契约见 [../backend-api.md](../backend-api.md)。
+> 本文只给三条命令。部署/数据/配置/排障见 [../OPS.md](../OPS.md)；接口契约见 [../API.md](../API.md)。
 
 ## 安装
 
@@ -29,5 +29,5 @@ PORT=9000 ./run.sh          # 改端口
 | 需要什么 | 去哪 |
 | --- | --- |
 | 部署、升级、数据目录、`.env` 全量变量、排障 | [../OPS.md](../OPS.md) |
-| 接口契约（请求/响应） | [../backend-api.md](../backend-api.md) |
+| 接口契约（请求/响应） | [../API.md](../API.md) |
 | 打包成 deb/rpm/发行包 | [../packaging/README.md](../packaging/README.md) |

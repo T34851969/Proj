@@ -5,7 +5,7 @@
 ## 文档导航
 - 运维（部署/升级/验收/排障/数据/配置） → [OPS.md](OPS.md)（含 Windows staging 部署与验收）
 - 打包规范与构建 → [packaging/README.md](packaging/README.md)
-- API 契约 → [backend-api.md](backend-api.md) / [frontend-api.md](frontend-api.md)
+- API 契约 → [API.md](API.md)（低频查阅，改接口时看）
 - 历史归档（只读） → [_archive/](_archive/)
 
 ## 工程约定（提交前自查）

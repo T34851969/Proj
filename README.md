@@ -5,7 +5,7 @@
 > **文档导航**
 > 运维（部署/升级/验收/排障/数据/配置） → [OPS.md](OPS.md) ·
 > 工程约定 → [AGENTS.md](AGENTS.md) ·
-> API 契约 → [backend-api.md](backend-api.md) / [frontend-api.md](frontend-api.md) ·
+> API 契约 → [API.md](API.md)（低频查阅） ·
 > 打包规范与构建 → [packaging/README.md](packaging/README.md) ·
 > 历史归档 → [_archive/](_archive/)
 
@@ -50,7 +50,7 @@
 ├── README.md                         # 项目总览（本文件）
 ├── OPS.md                            # 运维唯一出处（部署/升级/验收/排障/数据/配置）
 ├── AGENTS.md                         # 工程约定（唯一出处）
-├── backend-api.md / frontend-api.md  # API 契约文档
+├── API.md                            # HTTP 契约唯一出处（低频查阅）
 ├── LICENSE                           # GPL-3.0
 ├── .env.example                      # 环境变量模板
 ├── _archive/                         # 历史归档（只读，勿据此操作）

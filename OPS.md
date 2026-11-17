@@ -179,7 +179,13 @@ journalctl -u ai-resume -n 50 --no-pager        # 无 ERROR
 | `REGISTRATION_MODE` / `INVITE_CODE` | open / 空 | 邀请码注册模式 |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | admin / (env) | **仅首次启动**自动创建运营者账号；改这里不会改已有账号密码（用后台改密功能） |
 | `ACCESS_CODE` | 空 | 旧版共享口令（迁移兼容，将移除） |
-| `HOST` / `PORT` / `CORS_ORIGINS` / `DATA_DIR` | 127.0.0.1 / 8000 / ... / ./data | 监听与跨域 |
+| `HOST` / `PORT` / `CORS_ORIGINS` / `DATA_DIR` | 127.0.0.1 / 8000 / 见下 / ./data | 监听与跨域；`CORS_ORIGINS` 默认含 `localhost:5173`、`127.0.0.1:5173`、`tauri.localhost`、`tauri://localhost` |
+| `RATE_LIMIT_PER_MINUTE` | 30 | `/api/chat` 与 `/api/generate-resume` 的每 60 秒上限；`0`=关闭 |
+| `CHAT_TEMPERATURE` | 0.7 | 上游采样温度 |
+| `TOKEN_TTL_DAYS` | 7 | 令牌滑动有效期 |
+| `LOCKOUT_THRESHOLD` / `LOCKOUT_MINUTES` | 5 / 15 | 登录失败锁定 |
+| `LLM_TIMEOUT` / `CHAT_TIMEOUT` | 55 / 120 | 生成与对话的上游超时（秒） |
+| `STATIC_DIR` | 空 | 前端产物目录；空则自动探测 `<包根>/static` 与 `<包根>/../client/dist` |
 
 **LLM 配置优先级**：在线配置（runtime.sqlite3，运营者在界面「智能体→模型服务」保存）> .env。在线保存即时生效免重启。API Key 明文存本地 SQLite（与 .env 同级安全基线），接口永不回传明文。
 
@@ -191,7 +197,7 @@ journalctl -u ai-resume -n 50 --no-pager        # 无 ERROR
 - 禁用账号即时生效（令牌解析层拒绝）。
 - 运营后台入口：Web 登录 admin → 右上角用户菜单 →「运营后台」。
 
-关键接口速查见 [backend-api.md](backend-api.md)；常用运维操作：
+关键接口速查见 [API.md](API.md)；常用运维操作：
 
 | 操作 | 做法 |
 | --- | --- |
