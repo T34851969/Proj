@@ -1,7 +1,7 @@
 name: Deploy Windows Staging & Machine Acceptance
 
-# 自托管 runner（ws2025 VM）专用部署流水线。
-# 铁闸：fork PR 的代码永远到不了 runner——本 workflow 只监听 release 发布与手动触发，
+# 自托管 Windows runner 专用部署流水线（维护者持有，外部协作者无法复现该环境）。
+# 隔离：fork PR 的代码永远到不了 runner——本 workflow 只监听 release 发布与手动触发，
 # 且 job 级再挡一层 github.event_name != 'pull_request'。
 on:
   release:

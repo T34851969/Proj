@@ -78,7 +78,7 @@ cp -rT "$ROOT/client/dist" "$STAGE/static"
 # ---------- 3) 部署脚本与配置模板 ----------
 cp -rT "$ROOT/deploy" "$STAGE/deploy"
 cp "$ROOT/.env.example" "$STAGE/.env.example"
-cp "$ROOT/deploy/README-DEPLOY.md" "$STAGE/README-DEPLOY.md"
+cp "$ROOT/OPS.md" "$STAGE/OPS.md"
 
 # ---------- 4) 内嵌 Python 运行时 ----------
 echo "== 组装 Python 运行时($PY_MAJOR_MIN)=="

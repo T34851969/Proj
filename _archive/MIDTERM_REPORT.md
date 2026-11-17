@@ -1,7 +1,10 @@
 # 项目中期进展报告 — AI 简历生成器
 
+> **[已归档 2026-11]** 项目中期进展报告(2026-10 汇报周期),仅留档。现行运维口径见 [../OPS.md](../OPS.md)。
+
+
 > 汇报周期：项目启动至今（2026-10）
-> 当前版本：v1.1.2（已发布 GitHub Release）
+> 当时版本：v1.1.2（历史记录，非当前版本；当前版本以 `git tag` 为准）
 > 仓库：github.com/V2tin19/ai-resume（单仓库 monorepo）
 
 ---
@@ -99,7 +102,7 @@
 
 ## 六、当前进展与交付物
 
-- **v1.1.2 已发布**（GitHub Release）：Windows 安装包 / Android APK / SHA256 校验和，附发布说明；
+- **v1.1.2 已发布**（GitHub Release，历史记录）：Windows 安装包 / Android APK / SHA256 校验和，附发布说明；
 - **交付质量**：双端同源代码、同版本号；CI 全绿；测试全绿；
 - **服务器**：部署环境健康检查通过（公网可访问 `/api/health`），完整用户链路远程验收进行中；
 - **代码规模**：前后端 + 客户端三端 monorepo，主分支与开发分支同步，全部提交可在仓库追溯。
@@ -123,4 +126,4 @@
 
 ---
 
-*附：详细运维与部署口径见仓库 HANDOVER.md / DEPLOYMENT.md / ACCEPTANCE.md。*
+*附：详细运维与部署口径见 [../OPS.md](../OPS.md)（本报告写于合并前，当时指向 HANDOVER.md / DEPLOYMENT.md / ACCEPTANCE.md）。*

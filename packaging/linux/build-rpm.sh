@@ -25,7 +25,7 @@ while [[ $# -gt 0 ]]; do
 done
 [ -n "$LAYOUT" ] && [ -n "$VER" ] || usage
 [ -f "$LAYOUT/app/main.py" ] && [ -x "$LAYOUT/runtime/bin/python" ] || { echo "布局不完整: $LAYOUT" >&2; exit 1; }
-command -v rpmbuild >/dev/null || { echo "缺少 rpmbuild(nix-shell -p rpm)" >&2; exit 1; }
+command -v rpmbuild >/dev/null || { echo "缺少 rpmbuild(安装 rpm 包或 rpm-build 即可)" >&2; exit 1; }
 
 LAYOUT="$(readlink -f "$LAYOUT")"
 mkdir -p "$OUT"

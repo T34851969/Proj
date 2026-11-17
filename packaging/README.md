@@ -15,7 +15,7 @@ packaging/linux/build-deb.sh --layout /tmp/layout/ai-resume-server-linux-x86_64-
 packaging/linux/build-rpm.sh --layout /tmp/layout/ai-resume-server-linux-x86_64-lite --version X.Y.Z --out dist-release
 ```
 
-- **安装行为**: enable 不 start(团队规则);启动: `systemctl enable --now ai-resume`
+- **安装行为**: enable 不 start(不强制启动);启动: `systemctl enable --now ai-resume`
 - `.env` 是 conffile / `%config(noreplace)`,升级不覆盖用户配置
 - 包内容: `/opt/ai-resume`(布局) + `/usr/lib/systemd/system/ai-resume.service` + 系统用户 `ai-resume`
 - rpm 已关 AutoReqProv(内嵌解释器会生成伪依赖)
@@ -33,23 +33,21 @@ CI `client-android` job（ubuntu runner 预装 SDK/NDK，无需 setup-android �
 产物: `ai-resume-client-arm64-v8a-android.apk`（连接远程服务器，明文 http 已放行）。
 签名身份由维护者保管——**升级必须同签名**，keystore 丢失只能换包名重新上架。
 
-x99 本地同款构建（工具已就位）: rustup stable + aarch64-linux-android target（tuna 镜像）
-+ `JAVA_HOME`(nix JDK 17) + `ANDROID_HOME=/data/toolchains/android-sdk`（build-tools 34 +
-platform 34 + NDK 26.3）+ `NDK_HOME=…/ndk/26.3.11579264`，zipalign/apksigner 取 build-tools 34。
+本地构建同款 APK：需要 rustup stable + `aarch64-linux-android` target、JDK 17、
+Android SDK（build-tools 34 + platform 34 + NDK 26.3），`zipalign`/`apksigner` 取 build-tools 34。
 
 ## 构建与验证矩阵
 
-| 包 | 构建地 | 真机验证(2026-11-15 完成) |
+| 包 | 构建地 | 验证状态 |
 | --- | --- | --- |
-| 服务器 deb | x99(nix-shell 取 dpkg)/ CI ubuntu | ✅ Debian 12 实机:安装/enabled/启动/health 全过 |
-| 服务器 rpm | x99(nix-shell 取 rpm)/ CI ubuntu | ✅ Fedora 44 实机:安装/enabled/启动/health 全过 |
+| 服务器 deb | 本地构建机 / CI ubuntu | ✅ Debian 12：安装 / enabled / 启动 / health 全过 |
+| 服务器 rpm | 本地构建机 / CI ubuntu | ✅ Fedora 44：安装 / enabled / 启动 / health 全过 |
 | 客户端 deb/rpm/AppImage | CI ubuntu(Tauri) | 发版后人工验收 |
 
-验证机静态 IP 约定: Debian 12 = 192.168.122.60, Fedora 44 = 192.168.122.61(禁用 DHCP,团队规则)。
+内网验证机约定：Debian 12 = 192.168.122.60，Fedora 44 = 192.168.122.61（禁用 DHCP，便于复现）。
 
 ## 运行时选型红线
 
-布局里的 runtime **必须**来自 standalone CPython(python-build-standalone,glibc 2.17 起)。
-发行版自带或 nix 构建的 CPython 拷入布局后,在目标发行版必坏(glibc 版本耦合,
-nix 解释器还会拖出 libstdc++/site-packages 的连锁问题)。
-x99 侧 standalone 解释器: `/data/toolchains/python-3.11.18/`。
+布局里的 runtime **必须**来自 standalone CPython（python-build-standalone，glibc 2.17 起）。
+发行版自带或 nix 构建的 CPython 拷入布局后，在目标发行版必坏（glibc 版本耦合，
+nix 解释器还会拖出 libstdc++/site-packages 的连锁问题）。

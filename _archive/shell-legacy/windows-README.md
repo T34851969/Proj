@@ -1,8 +1,11 @@
 # Windows 客户端(骨架,与 Linux 共用同一 PyQt6 壳)
 
+> **[已归档 2026-11]** 已废弃的 PyQt6 Windows 客户端骨架说明(发行形态已改为 Tauri 2,见 `client/src-tauri/`)。仅留档。
+
+
 > 状态:**骨架**。壳代码 `../ai_resume_client.py` 为跨平台 Python,可直接在
 > Windows 运行;打包脚本需要在一台 Windows 机器上执行(联网安装依赖属一次性环节,
-> 见 CS_MIGRATION_PLAN.md §8 网络边界)。
+> 见 ../CS_MIGRATION_PLAN.md §8 网络边界)。
 
 ## 运行(开发模式)
 

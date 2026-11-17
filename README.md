@@ -2,8 +2,18 @@
 
 基于大模型的学生个人简历撰写智能体。用户填写个人信息、选择模板，系统通过 LLM（DeepSeek/Qwen）自动生成排版精美的简历，支持 PDF/Word 导出。
 
-> **文档导航**:交接与运维事实 → [HANDOVER.md](HANDOVER.md) · 部署/升级/排障 → [DEPLOYMENT.md](DEPLOYMENT.md) ·
-> API 契约 → [backend-api.md](backend-api.md) / [frontend-api.md](frontend-api.md) · Linux 部署细节 → [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md) · 打包规范与构建 → [packaging/README.md](packaging/README.md)
+> **文档导航**
+> 运维（部署/升级/验收/排障/数据/配置） → [OPS.md](OPS.md) ·
+> 工程约定 → [AGENTS.md](AGENTS.md) ·
+> API 契约 → [backend-api.md](backend-api.md) / [frontend-api.md](frontend-api.md) ·
+> 打包规范与构建 → [packaging/README.md](packaging/README.md) ·
+> 历史归档 → [_archive/](_archive/)
+
+## 项目背景
+
+本项目是**学生项目实践**：由深圳技术大学学生团队在课程中协作完成，参与课程评审并计入学分，同时作为软件著作权申请的项目材料。项目派生自遵循 GPL 协议的既有开源项目，此后在账号体系、简历档案、运营后台与多端发行（Web / Windows / Linux / Android）上做了大幅重构。
+
+课程报告与团队协作记录保留在 [_archive/](_archive/)，作为项目过程的留痕。
 
 ## 1. 功能
 
@@ -37,10 +47,13 @@
 单仓库（monorepo），文档与前后端同仓：
 
 ```text
-├── README.md / REFACTOR_PLAN.md      # 文档
+├── README.md                         # 项目总览（本文件）
+├── OPS.md                            # 运维唯一出处（部署/升级/验收/排障/数据/配置）
+├── AGENTS.md                         # 工程约定（唯一出处）
 ├── backend-api.md / frontend-api.md  # API 契约文档
-├── TEAM_GUIDE.md                     # 团队协作指南
+├── LICENSE                           # GPL-3.0
 ├── .env.example                      # 环境变量模板
+├── _archive/                         # 历史归档（只读，勿据此操作）
 ├── backend/                          # Python 后端(app/、tests/、scripts/build_release.sh)
 ├── client/                           # Vue 前端 + src-tauri(Windows/Linux/Android 壳)
 ├── packaging/                        # 跨平台打包脚本与规范(见 packaging/README.md)
@@ -49,9 +62,9 @@
 
 ## 4. 快速启动
 
-### 4.1 生产部署：自包含发行包（推荐，目标机零安装零网络）
+### 4.1 生产部署
 
-**全部发行包从 [GitHub Release](https://github.com/T34851969/Proj/releases) 获取**：推送 `v*` tag 后 CI 自动构建并挂出，统一命名 `ai-resume-{client|server}-x86_64-{windows|linux}`（Android 为 `ai-resume-client-arm64-v8a-android`）：
+**发行包从 [GitHub Release](https://github.com/T34851969/Proj/releases) 获取**，统一命名 `ai-resume-{client|server}-x86_64-{windows|linux}`（Android 为 `ai-resume-client-arm64-v8a-android`）：
 
 | 资产 | 形态 | 说明 |
 | --- | --- | --- |
@@ -62,132 +75,68 @@
 | `ai-resume-client-arm64-v8a-android.apk` | APK | Android 端（arm64-v8a，统一签名） |
 | `SHA256SUMS.txt` | 清单 | 全部资产校验和 |
 
-服务器包目标机行为：解包即用（内嵌 CPython 运行时+全部依赖，零外部安装、零外网访问），deb/rpm 安装后 systemd 单元 **enable 不 start**，启动执行 `systemctl enable --now ai-resume`；`.env` 为 conffile，升级不覆盖配置。实机验证矩阵：**Debian 12 / Fedora 44 通过**。
-
-不打 tag 的本地出包（构建机已具备 backend/.venv 与 client/dist 时全程离线）：
-
-```bash
-./backend/scripts/build_release.sh [--full]                      # 自包含布局/tar 流程(lite 约 120MB,full 约 500MB)
-bash packaging/linux/build-deb.sh --layout <布局目录> --version X.Y.Z --out dist-release   # 服务器 deb
-bash packaging/linux/build-rpm.sh --layout <布局目录> --version X.Y.Z --out dist-release   # 服务器 rpm
-```
-
-Windows 包在 Windows 机器上执行 `backend\scripts\build_release.ps1` 产出，部署用 `deploy\windows\install.ps1`；
-**桌面安装包**（Tauri，内嵌后端）用 `cd client && npx tauri build` 产出 NSIS exe。
-细节见 [DEPLOYMENT.md](DEPLOYMENT.md)、[packaging/README.md](packaging/README.md) 与 [deploy/README-DEPLOY.md](deploy/README-DEPLOY.md)。
+安装、升级、验收、排障的完整流程见 **[OPS.md](OPS.md)**。
 
 ### 4.2 本地开发
 
-后端（自建虚拟环境）：
+后端（自建虚拟环境，详见 [backend/README.md](backend/README.md)）：
 
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate    # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp ../.env.example .env      # 编辑填入 LLM 配置
-./run.sh                     # 或: python -m uvicorn app.main:app --reload --port 8000
+./run.sh                     # 自激活 .venv，默认 127.0.0.1:8000
 ```
 
-前端（Node 仅开发构建时需要，运行时不需要）：
+前端（Node 仅开发构建时需要，运行时不需要，详见 [client/README.md](client/README.md)）：
 
 ```bash
 cd client
-npm ci && npm run dev        # http://localhost:5173,代理 /api 到 8000
-npm run build                # 产出 dist/,由后端(或任意静态服务器)托管
+npm ci && npm run dev        # http://localhost:5173，代理 /api 到 8000
+npm run build                # 产出 dist/，由后端托管
 ```
 
-## 5. 后端 API
+桌面壳调试：`cd client && npx tauri dev`（dev 会复用 8000 已有后端；无后端且已暂存 resources 时自动拉起）。
 
-所有接口挂在 `/api` 前缀下，详细请求/响应见 [backend-api.md](backend-api.md)：
+## 5. 环境变量
 
-| 方法   | 路径                                   | 说明                              |
-| ------ | -------------------------------------- | --------------------------------- |
-| GET    | `/api/health`                          | 健康检查(无需口令)               |
-| GET    | `/api/prompt-templates`                | 提示词模板列表                    |
-| POST   | `/api/generate-resume`                 | 生成简历(返回 JSON)             |
-| POST   | `/api/export-resume/docx`              | 导出 Word(请求体为 resumeData)  |
-| GET    | `/api/knowledge-base/config`           | 知识库参数配置                    |
-| PUT    | `/api/knowledge-base/config`           | 更新知识库参数                    |
-| GET    | `/api/knowledge-base/documents`        | 知识库文档列表                    |
-| POST   | `/api/knowledge-base/documents`        | 创建文本文档                      |
-| POST   | `/api/knowledge-base/documents/upload` | 上传文件(.docx/.pdf/.txt/.md,≤20MB) |
-| DELETE | `/api/knowledge-base/documents/{id}`   | 删除知识库文档                    |
-| POST   | `/api/chat`                            | LLM 对话代理(SSE 流式)         |
+统一在 `.env` 中管理（完整清单见 `.env.example`），LLM 凭据由后端保管，前端不保存任何密钥：
 
-> 除 `/api/health` 外，启用 `ACCESS_CODE` 后所有接口需携带 `X-Access-Code` 请求头。
+| 变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `LLM_API_URL` | LLM API 地址（OpenAI 兼容，含 `/chat/completions`） | — |
+| `LLM_API_KEY` | API 密钥 | — |
+| `LLM_MODEL` | 模型名称 | `qwen-plus` |
+| `AUTH_MODE` | `required`=必须登录 / `optional`=允许匿名 | `required` |
+| `REGISTRATION_MODE` / `INVITE_CODE` | `open`/`invite`/`closed` + 邀请码 | `open` / 空 |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | 首次启动创建的运营者账号 | `admin` / 空 |
+| `ACCESS_CODE` | 旧版共享口令（迁移兼容，将移除） | 空 |
+| `RATE_LIMIT_PER_MINUTE` | 生成/对话接口每 IP 每分钟限流 | `30` |
+| `PORT` / `HOST` | 服务端口/绑定地址 | `8000` / `127.0.0.1` |
+| `CORS_ORIGINS` | 允许的跨域来源 | `localhost:5173` 等 |
+| `CHAT_TEMPERATURE` | Chat 温度（0.0-2.0） | `0.7` |
+| `DATA_DIR` | 数据目录 | `./data` |
 
-## 6. 前端路由
+模型调用 55 秒超时，失败自动降级本地规则生成（`meta.provider` 区分，`meta.fallbackReason` 给出原因）。
 
-| 路径        | 页面            |
-| ----------- | --------------- |
-| `/`         | 简历编辑与预览  |
-| `/template` | 模板市场        |
-| `/agent`    | AI 智能体工作台 |
-| `/setting`  | 网站配置        |
-| `/aiDeep`   | AI 深度交流     |
+## 6. 关于 Node.js 的结论
 
-## 7. 环境变量
+- **运行时不需要 Node**：前端是构建后的纯静态文件（`client/dist`），由后端 FastAPI 直接托管，单端口 8000。
+- **构建时仅在修改前端源码时需要 Node**（开发机上 `npm run build`）；发行包内已含构建产物，服务器与部署流程零 Node。
+- **是否替换前端技术栈：否。** Vue 组件化、5 套简历模板与交互逻辑迁移等于全量重写，在发布窗口内风险极高且无收益；Node 只存在于开发机构建环节，不进入生产链路。
 
-统一在 `.env` 中管理（见 `.env.example`），LLM 凭据由后端保管，前端不保存任何密钥：
-
-| 变量               | 说明                                     | 默认值                  |
-| ------------------ | ---------------------------------------- | ----------------------- |
-| `LLM_API_URL`      | LLM API 地址(OpenAI 兼容)              | —                       |
-| `LLM_API_KEY`      | API 密钥                                 | —                       |
-| `LLM_MODEL`        | 模型名称                                 | `qwen-plus`             |
-| `ACCESS_CODE`      | 访问口令(留空则不启用鉴权)             | 空                      |
-| `RATE_LIMIT_PER_MINUTE` | 生成/对话接口每 IP 每分钟限流       | `30`                    |
-| `PORT` / `HOST`    | 服务端口/绑定地址                        | `8000` / `127.0.0.1`    |
-| `CORS_ORIGINS`     | 允许的跨域来源                           | `http://localhost:5173` |
-| `CHAT_TEMPERATURE` | Chat 温度(0.0-2.0)                     | `0.7`                   |
-
-模型调用 55 秒超时,失败自动降级本地规则生成(`meta.provider` 区分,`meta.fallbackReason` 给出原因)。
-
-## 8. 关于 Node.js 的结论
-
-- **运行时不需要 Node**：前端是构建后的纯静态文件(`client/dist`),由后端 FastAPI 直接托管,单端口 8000。
-- **构建时仅在修改前端源码时需要 Node**(开发机上 `npm run build`);发行包内已含构建产物,服务器与部署流程零 Node。
-- **是否替换前端技术栈：否。** Vue 组件化、5 套简历模板与交互逻辑迁移等于全量重写,在发布窗口内风险极高且无收益;
-  Node 只存在于开发机构建环节,不进入生产链路。若未来团队完全停止前端迭代,才存在"去 Node"的可能。
-
-## 9. 测试
+## 7. 测试
 
 ```bash
-# 后端(backend/ 目录,虚拟环境内)
-pytest                       # 62+ 用例:纯函数/SSE/中间件/知识库/静态托管/API 冒烟
+# 后端（backend/ 目录，虚拟环境内）
+.venv/bin/python -m pytest   # 96 例：纯函数/SSE/中间件/知识库/静态托管/API 冒烟/档案/运营后台/鉴权
 
-# 前端(client/ 目录)
-npm run test                 # vitest:安全渲染/纯函数/口令存取
+# 前端（client/ 目录）
+npm run test                 # vitest：16 例，安全渲染/纯函数/口令存取
 npm run build                # vue-tsc 严格类型检查 + 生产构建
 ```
 
-## 10. 常用命令速查
-
-```bash
-# 发行包构建(构建机)
-./backend/scripts/build_release.sh [--full]      # 自包含布局/tar 流程(lite/full)
-bash packaging/linux/build-deb.sh --layout <布局> --version X.Y.Z --out dist-release   # 服务器 deb
-bash packaging/linux/build-rpm.sh --layout <布局> --version X.Y.Z --out dist-release   # 服务器 rpm
-ls dist-release/                                 # 产物 + SHA256SUMS
-
-# 服务管理(目标机)
-sudo systemctl {status|restart|stop} ai-resume   # systemd 管理
-journalctl -u ai-resume -f                       # 日志
-./deploy/start.sh                                # 前台启动(调试)
-./deploy/status.sh                               # 状态+健康检查
-./deploy/uninstall.sh                            # 卸载
-
-# 后端开发(backend/,虚拟环境内)
-./run.sh                                         # 启动开发服务器
-pytest                                           # 单元测试
-python test_api.py                               # API 冒烟(需服务已启动)
-
-# 前端开发(client/)
-npm run dev / build / test
-```
-
-## 11. CI/CD
+## 8. CI/CD
 
 单仓并行流水线（`.github/workflows/release-app.yml`），推送 `v*` tag 即自动发版：
 
@@ -199,27 +148,18 @@ npm run dev / build / test
   - `client-android`：APK（arm64-v8a，zipalign + apksigner 统一签名）
   - `packaging-linux`：服务器 deb / rpm（内含 **glibc 地板断言步**——运行时要求高于 glibc 2.17 直接判失败）
 
-部署（`.github/workflows/deploy-windows.yml`）：staging 服务部署 + 健康检查，Release 事件附加 NSIS
-安装包真机验收（静默安装 → 注册表验证 → 静默卸载）。注意：**CI 构建的 release 不会自动触发部署**
-（GitHub 对 GITHUB_TOKEN 创建的 release 抑制后续 workflow），发版后手动点火部署流水线：
-`gh workflow run deploy-windows.yml --ref v<版本>`。
+部署（`.github/workflows/deploy-windows.yml`）：staging 服务部署 + 健康检查，Release 事件附加 NSIS 安装包真机验收（静默安装 → 注册表验证 → 静默卸载）。注意：**CI 构建的 release 不会自动触发部署**（GitHub 对 GITHUB_TOKEN 创建的 release 抑制后续 workflow），发版后手动点火：`gh workflow run deploy-windows.yml --ref v<版本>`。
 
-**安全闸**：两条流水线均含 `if: github.event_name != 'pull_request'` 铁闸——fork PR 的代码永远不会
-到达自托管 runner；仓库默认 workflow 权限已收紧为 `read`。
+分支策略：`dev` 分支承载破坏性重构、激进测试与 staging 部署实验（deploy 支持 workflow_dispatch 指定 ref），main 只接收验证过的变更。
 
-分支策略：`dev` 分支承载破坏性重构、激进测试与 staging 部署实验（deploy 支持 workflow_dispatch 指定
-ref，可直接从 dev 验证破坏性变更），main 只接收验证过的变更。
+## 9. 工程规范
 
-## 12. 工程规范（红线）
+工程约定（运行时地板、零容器、资产命名、脚本编码、依赖上游策略、fork PR 隔离）见 **[AGENTS.md](AGENTS.md)**——该文件是唯一出处，本节不再重复。
 
-1. **运行时红线**：服务器发行包内嵌的 Python 必须是 standalone CPython（glibc 2.17 地板），禁止
-   发行版/nix 解释器进包——否则在旧 glibc 目标机直接拒载；CI 断言步强制拦截。
-2. **零容器**：本项目拒绝一切容器形态，所有产物均为原生包（deb/rpm/NSIS/zip/APK/AppImage）。
-3. **资产命名**：`ai-resume-{client|server}-{CPU架构}-{操作系统}`（如 `ai-resume-server-x86_64-linux.deb`），
-   Android 为 `ai-resume-client-arm64-v8a-android.apk`；不得引入其他命名。
-4. **Linux 打包**：systemd 单元 **enable 不 start**（安装不强制启动）；`.env` 为 conffile；安装位
-   `/opt/ai-resume`；包内零发行版依赖。
-5. **Windows 批处理**：必须 CRLF + ASCII（GBK 控制台对 LF/中文 bat 会碎裂解析），`.gitattributes` 已强制。
-6. **Tauri**：`productName` 必须 ASCII（Linux 包名派生自它，中文会被 deb/rpm 拒绝）；窗口标题可中文。
-7. **Android**：APK 统一签名（keystore 由仓库 secrets 托管），**升级必须同签名**。
-8. **版本对齐**：发版前 `client/src-tauri/tauri.conf.json` 的 `version` 必须与 tag 一致。
+## 10. 许可证
+
+本项目以 **GNU General Public License v3.0** 发布，全文见 [LICENSE](LICENSE)。
+
+项目派生自遵循 GPL 协议的上游项目，并在其基础上做了大幅重构与扩展；依据 GPL-3.0 的传染性条款，本项目的整体发行同样以 GPL-3.0 授权。二次分发或修改时请保留同样的许可与源码可得性。
+
+学生团队、课程与学校信息记录于上文「项目背景」，属项目经历留痕，请勿删除。

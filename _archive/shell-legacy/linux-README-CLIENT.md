@@ -1,5 +1,8 @@
 # AI 简历生成器 — Linux 客户端使用说明
 
+> **[已归档 2026-11]** 已废弃的 PyQt6 Linux 客户端说明(发行形态已改为 Tauri 2,见 `client/src-tauri/`)。仅留档。
+
+
 三种安装形态任选其一(均需配合服务端 `ai-resume-server` 使用):
 
 ## 1. deb(Ubuntu / Debian)
@@ -42,4 +45,4 @@ cp settings-desktop/ai-resume-client.desktop ~/.local/share/applications/ 2>/dev
 - 自包含包默认以 `--no-sandbox` 启动 Chromium(tar 分发无法保留 setuid 位);
   deb/pacman 包走系统 Qt6,保留沙箱。可用环境变量 `QTWEBENGINE_CHROMIUM_FLAGS` 覆盖。
 - 客户端数据(会话/设置)存于 `~/.local/share/ai-resume-client`。
-- 服务端部署见仓库根 README 与 `deploy/README-DEPLOY.md`。
+- 服务端部署见仓库根 [README.md](../../README.md) 与 [OPS.md](../../OPS.md)。

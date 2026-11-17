@@ -36,7 +36,7 @@ Copy-Item (Join-Path $backend "data\*.json")              "$layoutDir\data"
 Copy-Item -Recurse -Force (Join-Path $root "client\dist") "$layoutDir\static"
 Copy-Item -Recurse -Force (Join-Path $root "deploy")      "$layoutDir\deploy"
 Copy-Item -Force (Join-Path $root ".env.example")         "$layoutDir\.env.example"
-Copy-Item -Force (Join-Path $root "deploy\README-DEPLOY.md") "$layoutDir\README-DEPLOY.md"
+Copy-Item -Force (Join-Path $root "OPS.md") "$layoutDir\OPS.md"
 
 # 解释器:基础安装的 python.exe(venv 的 exe 是重定向器,离开 pyvenv.cfg 无法启动)
 # + 官方安装目录的 Lib(标准库,注意用 \* 拷内容,否则 PowerShell 会嵌套成 Lib\Lib)
