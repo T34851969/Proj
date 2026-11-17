@@ -11,7 +11,7 @@
 ## 计划结构(待工具链就位后初始化)
 
 ```text
-client/shell/android/
+（原 client/shell/android/，未随归档保留实现）
 ├── README.md                  # 本文件
 ├── build-android.sh           # 骨架:tauri android build 封装
 └── tauri.conf.json.template   # 骨架:Android 打包配置模板

@@ -2,7 +2,7 @@
 # Linux 客户端打包:deb / Arch(.pkg.tar.zst) / 自包含 tar.zst
 # (rpm 与 AppImage 需本机没有的工具,见 rpm/ 与 appimage/ 目录的骨架脚本)
 #
-# 用法: client/shell/linux/build_client_linux.sh [--out DIR]
+# 用法: _archive/shell-legacy/src/linux/build_client_linux.sh [--out DIR]
 # 依赖(本机): python3 + PyQt6/WebEngine(自检用)、dpkg-deb、tar、zstd
 set -euo pipefail
 
